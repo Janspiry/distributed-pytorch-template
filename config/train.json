@@ -1,0 +1,57 @@
+{
+    "name": "solution",
+    "phase": "train", // train/test/debug
+    "gpu_ids": [
+        0 // gpu ids list, default is 0
+    ],
+    "path": { //set the file path
+        "log": "logs", // base root path
+        "tb_logger": "tb_logger", // tensorboard logger
+        "results": "results",
+        "checkpoint": "checkpoint"
+    },
+    "datasets": {
+        "train": {
+            "name": "image_dataset",
+            "dataroot": "dataset/ffhq_64_512",
+            "batch_size": 2,
+            "num_workers": 8,
+            "use_shuffle": true,
+            "pin_memory": true,
+            "data_len": -1 // -1 represents all data used in training
+        },
+        "val": {
+            "name": "image_dataset",
+            "dataroot": "dataset/ffhq_64_512",
+            "num_workers": 4,
+            "pin_memory": true,
+            "data_len": 50
+        },
+        "test": { // to do 
+            
+        }
+    },
+    "model": {
+        "name": "car" // use which model
+    },
+    "training": {
+        "begin_epoch": 0, //if begin_epoch>0, resume training loading from checkpoint
+        "epoch": 100,
+        "max_iter": 1000000,
+        
+        "val_freq": 1e4,
+        "save_checkpoint_freq": 1e4,
+        "display_freq": 1e3,
+        "print_freq": 50,
+        "optimizer": {
+            "type": "adam",
+            "lr": 1e-4
+        },
+        
+        "ema_scheduler": { // not used now
+            "step_start_ema": 5000,
+            "update_ema_every": 1,
+            "ema_decay": 0.9999
+        }
+    }
+}
