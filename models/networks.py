@@ -1,11 +1,11 @@
 import functools
 import logging
-from pyexpat import model
 import torch
 import torch.nn as nn
 from torch.nn import init
 from torch.nn import modules
 import importlib
+import os
 logger = logging.getLogger('base')
 ####################
 # initialize
@@ -81,12 +81,19 @@ def init_weights(net, init_type='kaiming', scale=1, std=0.02):
 ####################
 def define_network(opt):
     model_opt = opt['model']
-    net = importlib.import_module(model_opt['name']).Model()
-
+    try:
+        net = importlib.import_module("models.modules.{}".format(model_opt['which_module'])).Model(opt)
+        logger.info('Network [{:s}] is created.'.format(net.__class__.__name__))
+    except:
+        raise NotImplementedError('Network [{:s}] not recognized.'.format(model_opt['which_module']))
+    
     
     if opt['phase'] == 'train':
         init_weights(net, init_type='kaiming', scale=0.1)
-    if opt['gpu_ids'] and opt['distributed']:
+    else:
+        # loading from checkpoint
+        pass
+    if opt['distributed']:
         assert torch.cuda.is_available()
         net = nn.DataParallel(net)
     return net

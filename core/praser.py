@@ -82,12 +82,12 @@ def parse(args):
 
     # debug
     if 'debug' in opt['name']:
-        opt['train']['val_freq'] = 2
-        opt['train']['print_freq'] = 2
-        opt['train']['save_checkpoint_freq'] = 3
+        opt['train']['val_freq'] = 10
+        opt['train']['print_freq'] = 10
+        opt['train']['save_checkpoint_freq'] = 10
         opt['datasets']['train']['batch_size'] = 2
-        opt['datasets']['train']['data_len'] = 6
-        opt['datasets']['val']['data_len'] = 3
+        opt['datasets']['train']['data_len'] = 10
+        opt['datasets']['val']['data_len'] = 2
 
     return dict_to_nonedict(opt)
 

@@ -29,7 +29,7 @@ def default_loader(path):
     return Image.open(path).convert('RGB')
 
 class Dataset(data.Dataset):
-    def __init__(self, opt, phase='train', image_size=[256, 256], return_paths=True, loader=default_loader):
+    def __init__(self, opt, phase='train', image_size=[256, 256], loader=default_loader):
         root = opt['root']
         imgs = make_dataset(root)
         if len(imgs) == 0:
@@ -56,17 +56,15 @@ class Dataset(data.Dataset):
                  transforms.ToTensor()
             ])
         
-        self.return_paths = return_paths
         self.loader = loader
 
     def __getitem__(self, index):
+        ret = {}
         path = self.imgs[index]
         img = self.loader(path)
         img = self.tfs(img)
-        if self.return_paths:
-            return img, path
-        else:
-            return img
+        ret['input'] = img
+        ret['path'] = path
 
     def __len__(self):
         return len(self.imgs)
