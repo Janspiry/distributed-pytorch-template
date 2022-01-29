@@ -5,15 +5,27 @@ This is a seed project for deep learning, designed to quickly train and test net
 ### Todo
 
 - [x] training step
+
 - [x] validation step
+
 - [ ] test step
-- [ ] checkpoint/resume training
+
+- [x] checkpoint/resume training
+
 - [x] progress bar (tqdm)
+
 - [x] progress logs (logging)
+
 - [x] progress  visualization (tensorboard)
-- [ ] network weight initialization
+
+- [x] network weight initialization
+
 - [ ] multi -gpu support 
-- [ ] 
-- [ ] 
+
+- [x] pretrained model (partial network parameters training)
+
+- [x] learning rate scheduler
+
+  
 
 ### Usage
