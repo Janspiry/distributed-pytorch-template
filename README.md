@@ -26,6 +26,10 @@ This is a seed project for deep learning, designed to quickly train and test net
 
 - [x] learning rate scheduler
 
+- [] random seed
+
+- [] 
+
   
 
 ### Usage

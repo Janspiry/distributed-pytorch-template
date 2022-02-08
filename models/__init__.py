@@ -5,6 +5,7 @@ logger = logging.getLogger('base')
 def create_model(opt):
     model_opt = opt['model']
     try:
+        ''' loading Model() class from given file's name '''
         net = importlib.import_module("models.{}".format(model_opt['which_model'])).Model(opt)
         logger.info('Model [{:s}] is created.'.format(net.__class__.__name__))
     except:

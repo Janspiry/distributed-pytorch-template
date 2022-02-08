@@ -1,5 +1,40 @@
 import torch
 import torch.nn as nn
+
+class Network(nn.Module):
+    def name(self):
+        return 'BaseNetwork'
+    def __init__(self, opt=None, in_channels=3):
+        super(Network, self).__init__()
+
+        self.in_channels = in_channels
+        cnums = 64
+        self.down_net = nn.Sequential(
+            Down2(in_channels, cnums),
+            Down2(cnums, cnums*2),
+            Down3(cnums*2, cnums*4),
+            Down2(cnums*4, cnums*8),
+        )
+        self.up_net = nn.Sequential(
+            Up2(cnums*8, cnums*4),
+            Up2(cnums*4, cnums*2),
+            Up3(cnums*2, cnums*1),
+            # Up2(cnums*1, cnums*1),
+            nn.Upsample(scale_factor=2, mode='nearest', align_corners=None),
+            nn.Conv2d(cnums*1, in_channels, kernel_size=3, stride=1, padding=1),
+            nn.Tanh()
+        )
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+
+    def forward(self, _x):
+        _x = self.down_net(_x)
+        _x = self.up_net(_x)
+        return _x
+
+        
 class conv2DBatchNormRelu(nn.Module):
     def __init__(
             self,
@@ -89,84 +124,3 @@ class Up3(nn.Module):
         outputs = self.conv3(outputs)
         return outputs
 
-
-class Model(nn.Module):
-    def __init__(self, opt=None, in_channels=3):
-        super(Model, self).__init__()
-
-        self.in_channels = in_channels
-        cnums = 64
-        self.down_net = nn.Sequential(
-            Down2(in_channels, cnums),
-            Down2(cnums, cnums*2),
-            Down3(cnums*2, cnums*4),
-            Down2(cnums*4, cnums*8),
-        )
-        self.up_net = nn.Sequential(
-            Up2(cnums*8, cnums*4),
-            Up2(cnums*4, cnums*2),
-            Up3(cnums*2, cnums*1),
-            # Up2(cnums*1, cnums*1),
-            nn.Upsample(scale_factor=2, mode='nearest', align_corners=None),
-            nn.Conv2d(cnums*1, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.Tanh()
-        )
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight)
-
-    def forward(self, _x):
-        _x = self.down_net(_x)
-        _x = self.up_net(_x)
-        return _x
-
-class MiniModel(nn.Module):
-    def __init__(self, in_channels=3):
-        super(MiniModel, self).__init__()
-
-        self.in_channels = in_channels
-        cnums = 64
-        self.down_net = nn.Sequential(
-            nn.Conv2d(3, cnums, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(cnums),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(cnums, cnums*2, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(cnums*2),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(cnums*2, cnums*4, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(cnums*4),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(cnums*4, cnums*8, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(cnums*8),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(cnums*8, cnums*8, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(cnums*8),
-            nn.ReLU(inplace=True),
-        )
-        self.up_net = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='nearest', align_corners=None),
-            nn.Conv2d(cnums*8, cnums*4, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(cnums*4),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='nearest', align_corners=None),
-            nn.Conv2d(cnums*4, cnums*2, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(cnums*2),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='nearest', align_corners=None),
-            nn.Conv2d(cnums*2, cnums*1, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(cnums*1),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='nearest', align_corners=None),
-            nn.Conv2d(cnums*1, 3, kernel_size=3, stride=1, padding=1),
-            nn.Tanh()
-        )
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight)
-
-    def forward(self, _x):
-        _x = self.down_net(_x)
-        _x = self.up_net(_x)
-        return _x

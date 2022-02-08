@@ -25,11 +25,13 @@ def make_dataset(dir):
 
     return images
 
-def default_loader(path):
+def pil_loader(path):
     return Image.open(path).convert('RGB')
 
 class Dataset(data.Dataset):
-    def __init__(self, opt, phase='train', image_size=[256, 256], loader=default_loader):
+    def name(self):
+        return 'BaseDataset'
+    def __init__(self, opt, phase='train', image_size=[256, 256], loader=pil_loader):
         root = opt['root']
         imgs = make_dataset(root)
         if len(imgs) == 0:
@@ -65,6 +67,7 @@ class Dataset(data.Dataset):
         img = self.tfs(img)
         ret['input'] = img
         ret['path'] = path
+        return ret
 
     def __len__(self):
         return len(self.imgs)

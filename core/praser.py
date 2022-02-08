@@ -22,8 +22,8 @@ class NoneDict(dict):
         return None
 
 
-# convert to NoneDict, which return None for missing key.
 def dict_to_nonedict(opt):
+    ''' convert to NoneDict, which return None for missing key. '''
     if isinstance(opt, dict):
         new_opt = dict()
         for key, sub_opt in opt.items():
@@ -57,7 +57,7 @@ def parse(args):
             json_str += line
     opt = json.loads(json_str, object_pairs_hook=OrderedDict)
 
-    # set log directory
+    ''' set log directory '''
     if args.debug:
         opt['name'] = 'debug_{}'.format(opt['name'])
     experiments_root = os.path.join(
@@ -68,25 +68,23 @@ def parse(args):
             opt['path'][key] = os.path.join(experiments_root, path)
             mkdirs(opt['path'][key])
 
-    # change dataset length limit
     opt['phase'] = phase
 
-    # export CUDA_VISIBLE_DEVICES
+    ''' set cuda environment '''
     if gpu_ids is not None:
         opt['gpu_ids'] = [int(id) for id in gpu_ids.split(',')]
-   
     if len(opt['gpu_ids']) > 1:
         opt['distributed'] = True
     else:
         opt['distributed'] = False
 
-    # debug
+    ''' debug mode '''
     if 'debug' in opt['name']:
-        opt['train']['val_freq'] = 10
-        opt['train']['print_freq'] = 10
-        opt['train']['save_checkpoint_freq'] = 10
+        opt['train']['val_freq'] = 4
+        opt['train']['print_freq'] = 4
+        opt['train']['save_checkpoint_freq'] = 4
         opt['datasets']['train']['batch_size'] = 2
-        opt['datasets']['train']['data_len'] = 10
+        opt['datasets']['train']['data_len'] = 4
         opt['datasets']['val']['data_len'] = 2
 
     return dict_to_nonedict(opt)

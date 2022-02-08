@@ -1,7 +1,9 @@
 import os
 import os.path as osp
 import logging
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter\
+from tensorboardX import SummaryWriter
+
 
 tb_logger = None
 def init_logger(opt):
@@ -30,20 +32,19 @@ def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
         sh.setFormatter(formatter)
         l.addHandler(sh)
 
-def print_current_logs(self, epoch, i, errors, phase='base'):
-    message = '<epoch: %d, iters: %d>'.format(epoch, i)
+def print_current_logs(epoch, i, errors, phase='base'):
+    message = '<epoch: {:.0f}, iters: {:.0f}>'.format(epoch, i)
     for k, v in errors.items():
-        v = ['%.4f' % iv for iv in v]
-        message += k + ': ' + ', '.join(v) + ' | '
+        message += k + ': ' + '{:.4f}'.format(v) + ' |'
     logger =  logging.getLogger(phase)
     logger.info(message)
 
-def display_current_logs(self, epoch, i, errors, phase='base'):
+def display_current_logs(epoch, i, errors, phase='base'):
     global tb_logger
     for k, v in errors.items():
-        tb_logger.add_scalar(phase+":"+str(k), v, i)
+        tb_logger.add_scalar(phase+"/"+str(k), v, i)
 
-def display_current_results(self, epoch, i, results, phase='base'):
+def display_current_results(epoch, i, results, phase='base'):
     global tb_logger
     for k, v in results.items():
-        tb_logger.add_image(phase+":"+str(k), v, i)
+        tb_logger.add_image(phase+"/"+str(k), v, i)

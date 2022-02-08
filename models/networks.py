@@ -82,18 +82,21 @@ def init_weights(net, init_type='kaiming', scale=1, std=0.02):
 def define_network(opt):
     model_opt = opt['model']
     try:
-        net = importlib.import_module("models.modules.{}".format(model_opt['which_module'])).Model(opt)
-        logger.info('Network [{:s}] is created.'.format(net.__class__.__name__))
+        ''' loading Network() class from given file's name '''
+        net = importlib.import_module("models.modules.{}".format(model_opt['which_module'])).Network(opt)
+        logger.info('Network [{:s}] is created.'.format(net.name()))
     except:
         raise NotImplementedError('Network [{:s}] not recognized.'.format(model_opt['which_module']))
     
-    
-    if opt['phase'] == 'train':
+    if opt['phase'] == 'train' and opt['path']['resume_state'] is None:
         init_weights(net, init_type='kaiming', scale=0.1)
     else:
-        # loading from checkpoint
         pass
-    if opt['distributed']:
+        # loading from checkpoint, which define in model initialization part
+    
+    if len(opt['gpu_ids'])>0:
         assert torch.cuda.is_available()
-        net = nn.DataParallel(net)
+        net = net.cuda(opt['gpu_ids'][0])
+    if opt['distributed']:
+        net = nn.DataParallel(net, device_ids=opt['gpu_ids'])
     return net
