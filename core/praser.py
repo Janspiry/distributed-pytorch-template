@@ -47,11 +47,8 @@ def dict2str(opt, indent_l=1):
     return msg
 
 def parse(args):
-    phase = args.phase
-    opt_path = args.config
-    gpu_ids = args.gpu_ids
     json_str = ''
-    with open(opt_path, 'r') as f:
+    with open(args.config, 'r') as f:
         for line in f:
             line = line.split('//')[0] + '\n'
             json_str += line
@@ -68,11 +65,12 @@ def parse(args):
             opt['path'][key] = os.path.join(experiments_root, path)
             mkdirs(opt['path'][key])
 
-    opt['phase'] = phase
-
+    ''' replace the config context using args '''
+    opt['phase'] = args.phase
+ 
     ''' set cuda environment '''
-    if gpu_ids is not None:
-        opt['gpu_ids'] = [int(id) for id in gpu_ids.split(',')]
+    if args.gpu_ids is not None:
+        opt['gpu_ids'] = [int(id) for id in args.gpu_ids.split(',')]
     if len(opt['gpu_ids']) > 1:
         opt['distributed'] = True
     else:

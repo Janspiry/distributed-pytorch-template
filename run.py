@@ -4,8 +4,7 @@ import logging
 import tqdm
 import core.logger as Logger
 import core.praser as Praser
-import os
-import numpy as np
+import core.util as Util
 import time
 from data import create_dataloader
 from models import create_model
@@ -17,7 +16,6 @@ if __name__ == '__main__':
                         help='Run train(train), val(validation) or test', default='train')
     parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-s', '--seed', default='2022')
     parser.add_argument('-P', '--port', default='21012', type=str)
 
 
@@ -25,6 +23,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     opt = Praser.parse(args)
     
+    '''set seed '''
+    Util.set_seed(opt['seed'])
+
     ''' set logger '''
     Logger.init_logger(opt=opt)
     base_logger = logging.getLogger('base')
