@@ -1,28 +1,32 @@
-import torch
 import argparse
 import logging
 import tqdm
+import time
+import os
+
+import torch
+import torch.multiprocessing as mp
+
 import core.logger as Logger
 import core.praser as Praser
 import core.util as Util
-import time
 from data import create_dataloader
 from models import create_model
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', type=str, default='config/base.json', help='JSON file for configuration')
-    parser.add_argument('-p', '--phase', type=str, choices=['train', 'val', 'test'],
-                        help='Run train(train), val(validation) or test', default='train')
-    parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
-    parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-P', '--port', default='21012', type=str)
 
-
-    ''' parser configs '''
-    args = parser.parse_args()
-    opt = Praser.parse(args)
-    
+def main_worker(gpu, ngpus_per_node, opt):
+    ''' init_process_group '''
+    if 'local_rank' not in opt:
+        opt['local_rank'] = opt['global_rank'] = gpu
+    if opt['distributed']:
+        torch.cuda.set_device(int(opt['local_rank']))
+        print('using GPU {} for training'.format(int(opt['local_rank'])))
+        torch.distributed.init_process_group(backend = 'nccl', 
+            init_method = opt['init_method'],
+            world_size = opt['world_size'], 
+            rank = opt['global_rank'],
+            group_name='mtorch'
+        )
     '''set seed '''
     Util.set_seed(opt['seed'])
 
@@ -30,13 +34,6 @@ if __name__ == '__main__':
     Logger.init_logger(opt=opt)
     base_logger = logging.getLogger('base')
     base_logger.info(Praser.dict2str(opt))
-    
-    ''' set cuda environment '''
-    gpu_str = ','.join(str(x) for x in opt['gpu_ids'])
-    # os.environ['CUDA_VISIBLE_DEVICES'] = gpu_str
-    # base_logger.info('export CUDA_VISIBLE_DEVICES={}'.format(gpu_str))
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
 
     '''set model and dataset'''
     for phase, dataset_opt in opt['datasets'].items():
@@ -61,7 +58,7 @@ if __name__ == '__main__':
                 total_iters += opt['datasets']['train']['batch_size']
                 model.set_input(train_data)
                 model.optimize_parameters()
-
+                
                 if total_iters % opt['train']['display_freq'] == 0:
                     Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='train')
 
@@ -70,22 +67,23 @@ if __name__ == '__main__':
                     Logger.print_current_logs(total_epoch, total_iters, logs, phase='train')
                     Logger.display_current_logs(total_epoch, total_iters, logs, phase='train')
 
-                if total_iters % opt['train']['save_checkpoint_freq'] == 0:
-                    base_logger.info('Saving the model at the end of epoch %d, iters %d' % (total_epoch, total_iters))
-                    model.save(total_iters, total_epoch)
-                
-                if total_iters % opt['train']['val_freq'] == 0:
-                    try:
-                        # val_loader can be None
-                        val_pbar = tqdm.tqdm(val_loader)
-                        for val_data in val_pbar:
-                            model.set_input(val_data)
-                            model.val()
-                            Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
-                            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
-                    except:
-                        base_logger.info('Validation dataloader maybe not exist, Skip validation.')
-                        pass
+                if opt['global_rank']==0:
+                    if total_iters % opt['train']['save_checkpoint_freq'] == 0:
+                        base_logger.info('Saving the model at the end of epoch %d, iters %d' % (total_epoch, total_iters))
+                        model.save(total_iters, total_epoch)
+                    
+                    if total_iters % opt['train']['val_freq'] == 0:
+                        try:
+                            # val_loader can be None
+                            val_pbar = tqdm.tqdm(val_loader)
+                            for val_data in val_pbar:
+                                model.set_input(val_data)
+                                model.val()
+                                Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
+                                Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
+                        except:
+                            base_logger.info('Validation dataloader maybe not exist, Skip validation.')
+                            pass
                    
             base_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
     elif opt['phase'] == 'val':
@@ -97,3 +95,32 @@ if __name__ == '__main__':
             Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
             Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
     
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=str, default='config/base.json', help='JSON file for configuration')
+    parser.add_argument('-p', '--phase', type=str, choices=['train', 'val', 'test'],
+                        help='Run train(train), val(validation) or test', default='train')
+    parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-P', '--port', default='21012', type=str)
+
+
+    ''' parser configs '''
+    args = parser.parse_args()
+    opt = Praser.parse(args)
+    
+    ''' set cuda environment '''
+    gpu_str = ','.join(str(x) for x in opt['gpu_ids'])
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_str
+    print('export CUDA_VISIBLE_DEVICES={}'.format(gpu_str))
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
+
+    ngpus_per_node = torch.cuda.device_count()
+    if ngpus_per_node > 1:
+        opt['world_size'] = ngpus_per_node
+        opt['init_method'] = 'tcp://127.0.0.1:'+ args.port 
+        opt['distributed'] = True
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, opt))
+    else:
+        main_worker(0, 1, opt)

@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import logging
 from collections import OrderedDict
+import core.util as Util
 logger = logging.getLogger('base')
 class BaseModel():
     def name(self):
@@ -15,7 +16,6 @@ class BaseModel():
         ''' cuda enviroment'''
         self.gpu_ids = opt['gpu_ids']
         self.Tensor = torch.cuda.FloatTensor if self.gpu_ids else torch.Tensor
-        self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if self.gpu_ids else torch.device('cpu')
 
         ''' process record '''
         self.save_dir = opt['path']['checkpoint']
@@ -32,7 +32,7 @@ class BaseModel():
 
 
     def set_input(self, input):
-        self.input = input.to(self.device)
+        self.input = Util.set_device(input)
 
     def forward(self):
         pass

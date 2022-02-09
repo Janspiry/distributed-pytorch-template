@@ -21,10 +21,13 @@ def set_device(args):
   if torch.cuda.is_available():
     if isinstance(args, list):
       return (item.cuda() for item in args)
+    elif isinstance(args, dict):
+      for key, item in args.items():
+        if item is not None:
+            args[key] = item.cuda()
     else:
       return args.cuda()
   return args
-
 
 
 

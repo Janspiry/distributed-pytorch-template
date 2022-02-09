@@ -1,11 +1,12 @@
 import functools
 import logging
-import torch
 import torch.nn as nn
 from torch.nn import init
-from torch.nn import modules
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 import importlib
-import os
+
+import core.util as Util
 logger = logging.getLogger('base')
 ####################
 # initialize
@@ -94,9 +95,8 @@ def define_network(opt):
         pass
         # loading from checkpoint, which define in model initialization part
     
-    if len(opt['gpu_ids'])>0:
-        assert torch.cuda.is_available()
-        net = net.cuda(opt['gpu_ids'][0])
+    net = Util.set_device(net)
     if opt['distributed']:
-        net = nn.DataParallel(net, device_ids=opt['gpu_ids'])
+        net = DDP(net, device_ids=[opt['global_rank']], output_device=opt['global_rank'], 
+                      broadcast_buffers=True, find_unused_parameters=False)
     return net
