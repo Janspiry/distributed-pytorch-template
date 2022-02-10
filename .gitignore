@@ -1,3 +1,7 @@
+# myself
+experiments/*
+!experiments/clean.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

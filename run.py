@@ -1,4 +1,5 @@
 import argparse
+from email.policy import default
 import logging
 import tqdm
 import time
@@ -109,6 +110,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str, default='config/base.json', help='JSON file for configuration')
     parser.add_argument('-p', '--phase', type=str, choices=['train', 'val', 'test'],
                         help='Run train(train), val(validation) or test', default='train')
+    parser.add_argument('-b', '--batch', type=int, default=None, help='Batch size in every gpu')
     parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-P', '--port', default='21012', type=str)
