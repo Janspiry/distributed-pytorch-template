@@ -65,7 +65,7 @@ class Dataset(data.Dataset):
         img = self.loader(path)
         img = self.tfs(img)
         ret['input'] = img
-        ret['path'] = path.rsplit("/")
+        ret['path'] = path.rsplit("/")[-1]
         return ret
 
     def __len__(self):
