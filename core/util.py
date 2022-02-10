@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.distributed as dist
+import warnings
 
 def set_seed(seed, base=0, is_set=True):
   ''' set random seed '''

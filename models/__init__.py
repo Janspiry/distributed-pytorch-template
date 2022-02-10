@@ -7,7 +7,8 @@ def create_model(opt):
     try:
         ''' loading Model() class from given file's name '''
         net = importlib.import_module("models.{}".format(model_opt['which_model'])).Model(opt)
-        logger.info('Model [{:s}] is created.'.format(net.__class__.__name__))
+        if opt['global_rank']==0:
+            logger.info('Model [{:s}- {:s}] is created.'.format(net.name(), model_opt['which_model']))
     except:
         raise NotImplementedError('Model [{:s}] not recognized.'.format(model_opt['which_model']))
     return net

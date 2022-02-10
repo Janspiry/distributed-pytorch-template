@@ -29,6 +29,7 @@ class BaseModel():
         ''' log and visual result dict '''
         self.log_dict = OrderedDict()
         self.visuals_dict = OrderedDict()
+        self.results_dict = OrderedDict({"name":[], "result":[]})
 
 
     def set_input(self, input):
@@ -60,8 +61,11 @@ class BaseModel():
     def get_current_visuals(self):
         return self.visuals_dict
 
-     def get_current_log(self):
+    def get_current_log(self):
         return self.log_dict
+
+    def save_current_results(self):
+        return self.results_dict
 
     def update_learning_rate(self):
         for scheduler in self.schedulers:
@@ -89,17 +93,20 @@ class BaseModel():
         
     def save(self, total_iters, total_epoch):
         ''' save pretrained model and training state '''
+        if self.opt['global_rank']!=0:
+            return
         self.save_network(self.net, 'net', total_iters)
         self.save_training_state(total_epoch, total_iters)
 
     def print_network(self):
+        if self.opt['global_rank']!=0:
+            return
         s, n = self.get_network_description(self.net)
         if isinstance(self.net, nn.DataParallel):
             net_struc_str = '{} - {}'.format(self.net.__class__.__name__,
                                              self.net.module.__class__.__name__)
         else:
             net_struc_str = '{}'.format(self.net.__class__.__name__)
-
         logger.info('Network structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
         logger.info(s)
 

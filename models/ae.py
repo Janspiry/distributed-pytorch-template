@@ -3,22 +3,22 @@ import torch
 import torch.nn as nn
 from torch.optim import lr_scheduler
 
-from collections import OrderedDict
 import logging
 
 from .base_model import BaseModel
 from . import networks
+import core.util as Util
 logger = logging.getLogger('base')
 
 class Model(BaseModel):
     def name(self):
-        return 'ConvAutoEncoder'
+        return 'Model'
     def __init__(self, opt):
         super(Model, self).__init__(opt)
         
         ''' define network '''
         self.net = networks.define_network(opt)
-        if self.phase=='train':
+        if self.phase != 'test':
             self.net.train()
 
             ''' loss '''
@@ -56,7 +56,7 @@ class Model(BaseModel):
         self.print_network()
 
     def set_input(self, data):
-        self.input = data['input'].to(self.device)
+        self.input = Util.set_device(data['input'])
         self.path = data['path']
 
     def get_image_paths(self):
@@ -87,8 +87,13 @@ class Model(BaseModel):
         self.net.train()
 
     def get_current_visuals(self):
+        ''' return tensor dict to show on tensorboard, key can be arbitrary '''
         self.visuals_dict['input'] = self.input.detach()[0].float().cpu()
         self.visuals_dict['output'] = self.output.detach()[0].float().cpu()
         return self.visuals_dict
 
-    
+    def save_current_results(self):
+        ''' return tensor dict to save on given result path, key must contains name and result'''
+        self.results_dict['name'] = self.path
+        self.results_dict['result'] = self.output
+        return self.results_dict

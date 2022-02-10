@@ -12,7 +12,7 @@ def create_dataloader(opt, phase='train'):
     '''create dataset and set random seed'''
     worker_init_fn = partial(Util.set_seed, base=opt['seed'])
     dataset_opt = opt['datasets'][phase]
-    dataset = create_dataset(dataset_opt, phase)
+    dataset = create_dataset(opt, dataset_opt, phase)
 
     '''create datasampler'''
     data_sampler = None
@@ -23,21 +23,21 @@ def create_dataloader(opt, phase='train'):
     '''create dataloader'''
     dataloader = DataLoader(
         dataset,
-        batch_size=dataset_opt['batch_size']//opt['world_size'],
+        batch_size=dataset_opt['batch_size'],
         num_workers=dataset_opt['num_workers'],
-        shuffle=(phase=='train') and dataset_opt['use_shuffle'],
+        shuffle=(data_sampler is None) and (phase=='train') and dataset_opt['use_shuffle'],
         pin_memory=dataset_opt['pin_memory'],
         sampler=data_sampler, 
         worker_init_fn=worker_init_fn
     )
     return dataloader
 
-def create_dataset(dataset_opt, phase):
+def create_dataset(opt, dataset_opt, phase):
     '''create dataset, loading Dataset() class from given file's name '''
     dataset_name = 'data.'+dataset_opt['name']
     dataset = importlib.import_module(dataset_name).Dataset(dataset_opt, phase=phase)
-    
-    logger.info('Dataset [{:s} - {:s}] is created. Size is {}. Phase is {}'.format(dataset.name(),
-                                                        dataset_opt['name'], len(dataset), phase))
+    if opt['global_rank']==0:
+        logger.info('Dataset [{:s} - {:s}] is created. Size is {}. Phase is {}'.format(dataset.name(),
+                                                            dataset_opt['name'], len(dataset), phase))
     return dataset
 

@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class Network(nn.Module):
     def name(self):
-        return 'BaseNetwork'
+        return 'ConvAutoEncoder'
     def __init__(self, opt=None, in_channels=3):
         super(Network, self).__init__()
 

@@ -81,9 +81,9 @@ def parse(args):
         opt['train']['val_freq'] = 4
         opt['train']['print_freq'] = 4
         opt['train']['save_checkpoint_freq'] = 4
-        opt['datasets']['train']['batch_size'] = 2
-        opt['datasets']['train']['data_len'] = 4
-        opt['datasets']['val']['data_len'] = 2
+        opt['datasets']['train']['batch_size'] = 2*len(opt['gpu_ids'])
+        opt['datasets']['train']['data_len'] = 10*len(opt['gpu_ids'])
+        opt['datasets']['val']['data_len'] = 10*len(opt['gpu_ids'])
 
     return dict_to_nonedict(opt)
 

@@ -17,7 +17,7 @@ Here are some basic functions or examples that this repository is ready to imple
 - [x] multi-gpu support (using DistributedDataParallel and torch.multiprocessing)
 - [x] pretrained-model (partial network parameters training)
 - [x] learning rate scheduler
-- [ ] random seed
+- [x] random seed
 - [ ] custom loss
 
 

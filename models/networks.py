@@ -85,7 +85,8 @@ def define_network(opt):
     try:
         ''' loading Network() class from given file's name '''
         net = importlib.import_module("models.modules.{}".format(model_opt['which_module'])).Network(opt)
-        logger.info('Network [{:s}] is created.'.format(net.name()))
+        if opt['global_rank']==0:
+            logger.info('Network [{:s}- {:s}] is created.'.format(net.name(), model_opt['which_module']))
     except:
         raise NotImplementedError('Network [{:s}] not recognized.'.format(model_opt['which_module']))
     

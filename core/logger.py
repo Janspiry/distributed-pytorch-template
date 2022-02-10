@@ -1,14 +1,20 @@
+from genericpath import exists
 import os
 import os.path as osp
+import numpy as np
+from PIL import Image
 import logging
 # from torch.utils.tensorboard import SummaryWriter\
 from tensorboardX import SummaryWriter
 
 
 tb_logger = None
+gl_opt = None
 def init_logger(opt):
+    global gl_opt 
+    gl_opt = opt
     setup_logger(None, opt['path']['log'], 'train', level=logging.INFO, screen=True)
-    setup_logger('train', opt['path']['log'], 'train', level=logging.INFO, screen=True)
+    setup_logger('train', opt['path']['log'], 'train', level=logging.INFO, screen=False)
     setup_logger('val', opt['path']['log'], 'val', level=logging.INFO, screen=False)
     setup_logger('test', opt['path']['log'], 'test', level=logging.INFO, screen=False)
     setup_tblogger(log_dir=opt['path']['tb_logger'])    
@@ -23,7 +29,7 @@ def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
     formatter = logging.Formatter(
         '%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s', datefmt='%y-%m-%d %H:%M:%S')
     log_file = os.path.join(root, '{}.log'.format(phase))
-    fh = logging.FileHandler(log_file, mode='w')
+    fh = logging.FileHandler(log_file, mode='a+')
     fh.setFormatter(formatter)
     l.setLevel(level)
     l.addHandler(fh)
@@ -48,3 +54,29 @@ def display_current_results(epoch, i, results, phase='base'):
     global tb_logger
     for k, v in results.items():
         tb_logger.add_image(phase+"/"+str(k), v, i)
+
+
+'''save results'''
+def postprocess(img):
+  img = (img+1)/2*255
+  img = img.permute(0,2,3,1)
+  img = img.int().cpu().numpy().astype(np.uint8)
+  return img
+
+def save_current_results(epoch, i, results, phase='val'):
+    global gl_opt
+    result_path = os.path.join(gl_opt['path']['results'], phase)
+    os.makedirs(result_path, exist_ok=True)
+    result_path = os.path.join(result_path, str(i))
+    os.makedirs(result_path, exist_ok=True)
+
+    ''' get names and corresponding images from results[OrderedDict] '''
+    try:
+        names = results['name']
+        outputs = postprocess(results['result'])
+    except:
+        raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
+    for i in range(len(names)): 
+        Image.fromarray(outputs[i]).save(os.path.join(result_path, names[i]))
+
+

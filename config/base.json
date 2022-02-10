@@ -11,14 +11,14 @@
         "tb_logger": "tb_logger", // root of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        "resume_state": "experiments/debug_base_220208_220414/checkpoint/4" // ex: 10000, loading .state  and _net.pth from given iterations
-        // "resume_state": null // ex: 10000, loading .state  and _net.pth from given iterations
+        // "resume_state": "experiments/debug_base_220210_165430/checkpoint/36"
+        "resume_state": null // ex: 10000, loading .state  and _net.pth from given iterations
     },
     "datasets": { // train|val|test, None part will be skip
         "train": {
             "name": "image_dataset", // use which dataset, indicates dataset's file name
             "root": "/data/jlw/datasets/comofod",
-            "batch_size": 2,
+            "batch_size": 2, // batch size in every gpu
             "num_workers": 8,
             "use_shuffle": true,
             "pin_memory": true,

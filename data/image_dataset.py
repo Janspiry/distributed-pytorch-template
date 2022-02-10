@@ -30,7 +30,7 @@ def pil_loader(path):
 
 class Dataset(data.Dataset):
     def name(self):
-        return 'BaseDataset'
+        return 'ImageDataset'
     def __init__(self, opt, phase='train', image_size=[256, 256], loader=pil_loader):
         root = opt['root']
         imgs = make_dataset(root)
@@ -42,8 +42,7 @@ class Dataset(data.Dataset):
         self.root = root
         if opt['data_len'] < 0:
             opt['data_len'] = len(imgs)
-        else:
-            self.data_len = min(len(imgs), opt['data_len'])
+        self.data_len = min(len(imgs), opt['data_len'])
         self.imgs = imgs[:self.data_len]
 
         if phase == 'train':
@@ -66,7 +65,7 @@ class Dataset(data.Dataset):
         img = self.loader(path)
         img = self.tfs(img)
         ret['input'] = img
-        ret['path'] = path
+        ret['path'] = path.rsplit("/")[-1]
         return ret
 
     def __len__(self):
