@@ -56,7 +56,7 @@ def main_worker(gpu, ngpus_per_node, opt):
     model = create_model(opt)
 
     total_epoch, total_iters = model.get_current_iters()
-    phase_logger.info('Begin model {}.'.format(phase))
+    phase_logger.info('Begin model {}.'.format(opt['phase']))
     if opt['phase'] == 'train':
         while True:
             epoch_start_time = time.time()

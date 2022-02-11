@@ -101,7 +101,7 @@ def define_network(opt, network_name, init_type="kaiming"):
                       broadcast_buffers=True, find_unused_parameters=False)
     return net
 
-def define_networks(opt, ):
+def define_networks(opt):
     model_opt = opt['model']
     network_num = len(model_opt['which_networks'])
     init_types_num = len(model_opt['init_types'])
@@ -111,5 +111,5 @@ def define_networks(opt, ):
             nets.append(define_network(opt, model_opt['which_networks'][idx], model_opt['init_types'][idx]))
         else:
             nets.append(define_network(opt, model_opt['which_networks'][idx]))
-            
+    return nets 
     

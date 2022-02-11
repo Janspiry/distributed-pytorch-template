@@ -9,9 +9,10 @@ from tensorboardX import SummaryWriter
 
 tb_logger = None
 gl_opt = None
-def init_logger(opt, phase='base'):
+def init_logger(opt):
     global gl_opt 
     gl_opt = opt
+    phase = opt['phase']
     setup_logger(None, opt['path']['log'], 'base', level=logging.INFO, screen=False)
     setup_logger(phase, opt['path']['log'], phase, level=logging.INFO, screen=False)
     if phase=='train':
