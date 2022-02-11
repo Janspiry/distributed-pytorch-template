@@ -1,6 +1,7 @@
 import argparse
 from email.policy import default
 import logging
+from cv2 import phase
 import tqdm
 import time
 import os
@@ -40,18 +41,22 @@ def main_worker(gpu, ngpus_per_node, opt):
     ''' set logger '''
     Logger.init_logger(opt=opt)
     base_logger = logging.getLogger('base')
+    phase_logger = logging.getLogger(opt['phase'])
+    if opt['phase'] == 'train':
+        val_logger = logging.getLogger('val')
     if opt['global_rank']==0:
         base_logger.info(Praser.dict2str(opt))
 
     '''set model and dataset'''
-    for phase, dataset_opt in opt['datasets'].items():
-        if phase == 'train' and opt['phase'] != 'val':
-            train_loader =  create_dataloader(opt, phase='train') 
-        elif phase == 'val' and opt['global_rank']==0:
+    data_loader = create_dataloader(opt, phase=opt['phase']) 
+    if opt['phase'] == 'train':
+        ''' validation only run on GPU 0 with training '''
+        if opt['global_rank']==0: 
             val_loader = create_dataloader(opt, phase='val')
     model = create_model(opt)
 
     total_epoch, total_iters = model.get_current_iters()
+    phase_logger.info('Begin model {}.'.format(phase))
     if opt['phase'] == 'train':
         while True:
             epoch_start_time = time.time()
@@ -59,7 +64,7 @@ def main_worker(gpu, ngpus_per_node, opt):
             if total_epoch >= opt['train']['n_epoch']: 
                 break
 
-            train_pbar = tqdm.tqdm(train_loader)
+            train_pbar = tqdm.tqdm(data_loader)
             for train_data in train_pbar:
                 if total_iters >= opt['train']['n_iter']: 
                     break
@@ -77,7 +82,7 @@ def main_worker(gpu, ngpus_per_node, opt):
                         Logger.display_current_logs(total_epoch, total_iters, logs, phase='train')
 
                     if total_iters % opt['train']['save_checkpoint_freq'] == 0:
-                        base_logger.info('Saving the model at the end of epoch %d, iters %d' % (total_epoch, total_iters))
+                        phase_logger.info('Saving the model at the end of epoch {:.0f}, iters {:.0f}'.format(total_epoch, total_iters))
                         model.save(total_iters, total_epoch)
                     
                     if total_iters % opt['train']['val_freq'] == 0:
@@ -91,19 +96,20 @@ def main_worker(gpu, ngpus_per_node, opt):
                                 Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase='val')
                                 Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
                         except:
-                            base_logger.info('Validation dataloader maybe not exist, Skip validation.')
-                            pass
+                            val_logger.info('Validation error where dataloader maybe not exist, Skip it.')
             if opt['global_rank']==0:
-                base_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
-    elif opt['phase'] == 'val':
-        base_logger.info('Begin Model Validation.')
-        val_pbar = tqdm.tqdm(val_loader)
-        for val_data in val_pbar:
-            model.set_input(val_data)
-            model.val()
-            Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase='val')
-            Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
-            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
+                phase_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
+    
+    else:
+        data_pbar = tqdm.tqdm(data_loader)
+        for data in data_pbar:
+            model.set_input(data)
+            if opt['phase']=='val':
+                model.val()
+            else:
+                model.test()
+            Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase=opt['phase'])
+            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase=opt['phase'])
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -128,6 +134,7 @@ if __name__ == '__main__':
     warnings.warn('You have chosen to use cudnn for accleration. torch.backends.cudnn.enabled=True')
 
     ''' use DistributedDataParallel(DDP) and multiprocessing for multi-gpu training'''
+    # [Todo]: multi GPU on multi machine
     if opt['distributed']:
         # ngpus_per_node = torch.cuda.device_count()
         ngpus_per_node = len(opt['gpu_ids'])

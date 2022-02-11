@@ -12,16 +12,18 @@ logger = logging.getLogger('base')
 
 class Model(BaseModel):
     def name(self):
-        return 'Model'
+        return 'AEModel'
     def __init__(self, opt):
         super(Model, self).__init__(opt)
         
-        ''' define network '''
-        self.net = networks.define_network(opt)
+        ''' define network, which is a list'''
+        self.net = networks.define_networks(opt)[0]
+
+        ''' define parameters, include loss, optimizers, schedulers, etc.''' 
         if self.phase != 'test':
             self.net.train()
 
-            ''' loss '''
+            ''' loss, import munual loss using Util.set_device '''
             self.loss_fn = nn.L1Loss()
         
             ''' find the parameters to optimize '''
@@ -93,7 +95,21 @@ class Model(BaseModel):
         return self.visuals_dict
 
     def save_current_results(self):
-        ''' return tensor dict to save on given result path, key must contains name and result'''
+        ''' return tensor dict to save on given result path, key must contains name and result '''
         self.results_dict['name'] = self.path
         self.results_dict['result'] = self.output
         return self.results_dict
+
+    def load(self):
+        ''' load pretrained model and training state '''
+        load_path = self.opt['path']['resume_state']
+        self.load_network(load_path, network=self.net, network_label="net")
+        self.resume_training(load_path)
+    
+    def save(self, total_iters, total_epoch):
+        ''' save pretrained model and training state, which only do on GPU 0 '''
+        if self.opt['global_rank']!=0:
+            return
+        self.save_network(network=self.net, network_label='net', total_iters=total_iters)
+        self.save_training_state(total_epoch, total_iters)
+

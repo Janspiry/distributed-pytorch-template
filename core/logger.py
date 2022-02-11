@@ -7,16 +7,15 @@ import logging
 # from torch.utils.tensorboard import SummaryWriter\
 from tensorboardX import SummaryWriter
 
-
 tb_logger = None
 gl_opt = None
-def init_logger(opt):
+def init_logger(opt, phase='base'):
     global gl_opt 
     gl_opt = opt
-    setup_logger(None, opt['path']['log'], 'train', level=logging.INFO, screen=True)
-    setup_logger('train', opt['path']['log'], 'train', level=logging.INFO, screen=False)
-    setup_logger('val', opt['path']['log'], 'val', level=logging.INFO, screen=False)
-    setup_logger('test', opt['path']['log'], 'test', level=logging.INFO, screen=False)
+    setup_logger(None, opt['path']['log'], 'base', level=logging.INFO, screen=False)
+    setup_logger(phase, opt['path']['log'], phase, level=logging.INFO, screen=False)
+    if phase=='train':
+        setup_logger('val', opt['path']['log'], 'val', level=logging.INFO, screen=False)
     setup_tblogger(log_dir=opt['path']['tb_logger'])    
 
 def setup_tblogger(log_dir):
@@ -38,30 +37,30 @@ def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
         sh.setFormatter(formatter)
         l.addHandler(sh)
 
-def print_current_logs(epoch, i, errors, phase='base'):
+def print_current_logs(epoch, i, errors, phase='train'):
     message = '<epoch: {:.0f}, iters: {:.0f}>'.format(epoch, i)
     for k, v in errors.items():
         message += k + ': ' + '{:.4f}'.format(v) + ' |'
     logger =  logging.getLogger(phase)
     logger.info(message)
 
-def display_current_logs(epoch, i, errors, phase='base'):
+def display_current_logs(epoch, i, errors, phase='train'):
     global tb_logger
     for k, v in errors.items():
         tb_logger.add_scalar(phase+"/"+str(k), v, i)
 
-def display_current_results(epoch, i, results, phase='base'):
+def display_current_results(epoch, i, results, phase='val'):
     global tb_logger
     for k, v in results.items():
         tb_logger.add_image(phase+"/"+str(k), v, i)
 
 
-'''save results'''
 def postprocess(img):
-  img = (img+1)/2*255
-  img = img.permute(0,2,3,1)
-  img = img.int().cpu().numpy().astype(np.uint8)
-  return img
+    '''save results'''
+    img = (img+1)/2*255
+    img = img.permute(0,2,3,1)
+    img = img.int().cpu().numpy().astype(np.uint8)
+    return img
 
 def save_current_results(epoch, i, results, phase='val'):
     global gl_opt

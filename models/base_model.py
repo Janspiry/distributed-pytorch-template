@@ -74,30 +74,12 @@ class BaseModel():
     def get_current_learning_rate(self):
         return self.schedulers[0].get_lr()[0]
     
-    def load(self):
-        ''' load pretrained model and training state '''
-        load_path = self.opt['path']['resume_state']
-        if load_path is None:
-            return
-        model_path = "{}_{}.pth".format(load_path, "net")
-        state_path = "{}.state".format(load_path)
-        if model_path is not None:
-            logger.info('Loading pretrained model for G [{:s}] ...'.format(model_path))
-            if self.opt['finetune_norm']:
-                self.load_network(model_path, self.net, strict=False)
-            else:
-                self.load_network(model_path, self.net)
-        if self.phase=='train' and state_path is not None:
-            logger.info('Loading training state for [{:s}] ...'.format(state_path))
-            self.resume_training(state_path)
-        
-    def save(self, total_iters, total_epoch):
-        ''' save pretrained model and training state '''
-        if self.opt['global_rank']!=0:
-            return
-        self.save_network(self.net, 'net', total_iters)
-        self.save_training_state(total_epoch, total_iters)
+    def save(self):
+        pass 
 
+    def load(self):
+        pass
+        
     def print_network(self):
         if self.opt['global_rank']!=0:
             return
@@ -120,10 +102,14 @@ class BaseModel():
             state_dict[key] = param.cpu()
         torch.save(state_dict, save_path)
 
-    def load_network(self, load_path, network, strict=True):
+    def load_network(self, load_path, network, network_label, strict=True):
+        if load_path is None:
+            return 
+        model_path = "{}_{}.pth".format(load_path, network_label)
+        logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
         if isinstance(network, nn.DataParallel):
             network = network.module
-        network.load_state_dict(torch.load(load_path), strict=strict)
+        network.load_state_dict(torch.load(model_path), strict=strict)
 
     def save_training_state(self, epoch, iter_step):
         '''Saves training state during training, which will be used for resuming'''
@@ -138,8 +124,11 @@ class BaseModel():
 
     def resume_training(self, load_path):
         '''Resume the optimizers and schedulers for training'''
-        resume_state = torch.load(load_path)
-        print(resume_state)
+        if self.phase!='train' or load_path is None:
+            return
+        state_path = "{}.state".format(load_path)
+        logger.info('Loading training state for [{:s}] ...'.format(state_path))
+        resume_state = torch.load(state_path)
         self.epoch = resume_state['epoch']
         self.iter = resume_state['iter']
         resume_optimizers = resume_state['optimizers']

@@ -1,8 +1,6 @@
 {
     "name": "base", // experiments name
-    "gpu_ids": [ // gpu ids list, default is single 0
-        0 
-    ],
+    "gpu_ids": [0], // gpu ids list, default is single 0
     "seed" : 2022, // random seed
     "finetune_norm": false, // find the parameters to optimize
     "path": { //set every part file root
@@ -11,7 +9,7 @@
         "results": "results",
         "checkpoint": "checkpoint",
         // "resume_state": "experiments/debug_base_220210_165430/checkpoint/36"
-        "resume_state": null // ex: 10000, loading .state  and _net.pth from given iterations
+        "resume_state": null // ex: 10000, loading .state  and .pth from given iterations
     },
     "datasets": { // train|val|test, None part will be skip
         "train": {
@@ -36,8 +34,13 @@
         }
     },
     "model": {
-        "which_model": "ae", // use which trainer, indicates trainer's file name in models path
-        "which_module": "ae" // use which model structure, indicates structure's file name in models/modules path
+        "which_model": "ae_model", // use which model(trainer), indicates trainer's file name in models path
+        "which_networks": [
+            "ae"
+        ], // list of network structure, indicates network's file name in models/network path
+        "init_types" : [
+            "kaiming"
+        ] // list of network weights initialization method, can be [orthogonal|kaiming|normal], default is kaiming
     },
     "train": {
         "n_iter": 1000000, // max iterations

@@ -80,18 +80,17 @@ def init_weights(net, init_type='kaiming', scale=1, std=0.02):
 ####################
 # define network
 ####################
-def define_network(opt):
-    model_opt = opt['model']
+def define_network(opt, network_name, init_type="kaiming"):
     try:
         ''' loading Network() class from given file's name '''
-        net = importlib.import_module("models.modules.{}".format(model_opt['which_module'])).Network(opt)
+        net = importlib.import_module("models.network.{}".format(network_name)).Network(opt)
         if opt['global_rank']==0:
-            logger.info('Network [{:s}- {:s}] is created.'.format(net.name(), model_opt['which_module']))
+            logger.info('Network [{:s}- {:s}] is created.'.format(net.name(), network_name))
     except:
-        raise NotImplementedError('Network [{:s}] not recognized.'.format(model_opt['which_module']))
+        raise NotImplementedError('Network [{:s}] not recognized.'.format(network_name))
     
     if opt['phase'] == 'train' and opt['path']['resume_state'] is None:
-        init_weights(net, init_type='kaiming', scale=0.1)
+        init_weights(net, init_type, scale=0.1)
     else:
         pass
         # loading from checkpoint, which define in model initialization part
@@ -101,3 +100,16 @@ def define_network(opt):
         net = DDP(net, device_ids=[opt['global_rank']], output_device=opt['global_rank'], 
                       broadcast_buffers=True, find_unused_parameters=False)
     return net
+
+def define_networks(opt, ):
+    model_opt = opt['model']
+    network_num = len(model_opt['which_networks'])
+    init_types_num = len(model_opt['init_types'])
+    nets = []
+    for idx in range(network_num):
+        if idx<init_types_num:
+            nets.append(define_network(opt, model_opt['which_networks'][idx], model_opt['init_types'][idx]))
+        else:
+            nets.append(define_network(opt, model_opt['which_networks'][idx]))
+            
+    
