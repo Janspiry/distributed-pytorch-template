@@ -33,11 +33,6 @@ def main_worker(gpu, ngpus_per_node, opt):
     torch.backends.cudnn.enabled = True
     warnings.warn('You have chosen to use cudnn for accleration. torch.backends.cudnn.enabled=True')
     Util.set_seed(opt['seed'])
-    warnings.warn('You have chosen to seed training. '
-                  'This will turn on the CUDNN deterministic setting, '
-                  'which can slow down your training considerably! '
-                  'You may see unexpected behavior when restarting '
-                  'from checkpoints.')
 
     ''' set logger '''
     Logger.init_logger(opt=opt)

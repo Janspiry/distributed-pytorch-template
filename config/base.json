@@ -1,7 +1,7 @@
 {
     "name": "base", // experiments name
     "gpu_ids": [0], // gpu ids list, default is single 0
-    "seed" : 2022, // random seed
+    "seed" : -1, // random seed, seed <0 represents randomization not used 
     "finetune_norm": false, // find the parameters to optimize
     "path": { //set every part file root
         "log": "logs", // root of progress logs (logging) 

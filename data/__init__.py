@@ -11,7 +11,7 @@ logger = logging.getLogger('base')
 ''' create dataloader '''
 def create_dataloader(opt, phase='train'):
     '''create dataset and set random seed'''
-    worker_init_fn = partial(Util.set_seed, base=opt['seed'])
+    worker_init_fn = partial(Util.set_seed, gl_seed=opt['seed'])
     dataset_opt = opt['datasets'][phase]
     dataset = create_dataset(opt, dataset_opt, phase)
 
@@ -26,6 +26,7 @@ def create_dataloader(opt, phase='train'):
         batch_size=dataset_opt['batch_size'],
         num_workers=dataset_opt['num_workers'],
         shuffle=(data_sampler is None) and (phase=='train') and dataset_opt['use_shuffle'],
+        drop_last=(phase=='train'),
         pin_memory=dataset_opt['pin_memory'],
         sampler=data_sampler, 
         worker_init_fn=worker_init_fn

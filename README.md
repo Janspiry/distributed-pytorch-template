@@ -1,6 +1,6 @@
 # A-Seed-Project-For-Deep-Learning-by-Pytorch
 
-This repository is a seed project for deep learning, was built to customize networks, datasets, parameters and hyper-parameters quickly during the training and test process, which based on the same multi-GPU training process with log recording. Every part can be modifications easily to build your network.
+This repository is a seed project for deep learning, was built to customize networks, datasets, parameters and hyper-parameters quickly during the training and test , which based on the same multi-GPU training process with log recording. Every part can be modifications easily to build your network.
 
 ### Todo
 
@@ -17,7 +17,9 @@ Here are some basic functions or examples that this repository is ready to imple
 - [x] finetune (partial network parameters training)
 - [x] learning rate scheduler
 - [x] random seed
-- [x] custom loss
+- [x] custom losses
+- [x] reproducibility
+- [ ] custom metrics
 
 ------
 
@@ -28,10 +30,25 @@ Here are some basic functions or examples that this repository is ready to imple
 Run the `run.py` with your setting.
 
 ```python
-python run.py -d
+python run.py
 ```
 
 More choices can be found on `run.py` and `config/base.json`.
+
+*Note: cuDNN default settings are as follows for training, which may reduce your code reproducibility! You should notice it to avoid the unexpected behaviors.*
+
+```python
+ torch.backends.cudnn.enabled = True
+ # speed-reproducibility tradeoff https://pytorch.org/docs/stable/notes/randomness.html
+ if seed >=0 and gl_seed>=0:  # slower, more reproducible
+     torch.backends.cudnn.deterministic = True
+     torch.backends.cudnn.benchmark = False
+ else:  # faster, less reproducible, default setting
+     torch.backends.cudnn.deterministic = False
+     torch.backends.cudnn.benchmark = True
+```
+
+
 
 #### Customize Network
 
@@ -40,12 +57,16 @@ Network part shows your learning network structure, you can define your network 
 1. Put your network under `models/network` folder. See `ae.py` in this folder as an example.
 2. Edit the **\[model\][which_networks]** part in `config/base.json` to indicates network file's name, and it can be a list with respective weight initialization methods. Your networks will be imported by **define_networks** function in `models/networks.py`.
 
+
+
 #### Customize Dataset
 
 Dataset part decide the data need to be fed into network, you can define your dataset by following steps:
 
 1. Put your dataset under `data` folder. See `image_dataset.py` in this folder as an example.
 2. Edit the **\[dataset\]\[train|val|test\][name]** part in `config/base.json` to indicates dataset file's name, then your dataset will be imported by **create_dataset** function in `data/__init__.py`.
+
+
 
 #### Customize Model(Trainer)
 
@@ -76,7 +97,7 @@ See `load()/save()` functions as the example.
 
 See `get_current_log()/get_current_visuals()` functions as the example.
 
-##### 
+
 
 #### Customize More 
 
