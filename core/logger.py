@@ -1,6 +1,5 @@
 from genericpath import exists
 import os
-import os.path as osp
 import numpy as np
 from PIL import Image
 import logging
@@ -23,8 +22,8 @@ def setup_tblogger(log_dir):
     global tb_logger
     tb_logger = SummaryWriter(log_dir)
 
+''' set up logger '''
 def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
-    '''set up logger'''
     l = logging.getLogger(logger_name)
     formatter = logging.Formatter(
         '%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s', datefmt='%y-%m-%d %H:%M:%S')
@@ -55,9 +54,8 @@ def display_current_results(epoch, i, results, phase='val'):
     for k, v in results.items():
         tb_logger.add_image(phase+"/"+str(k), v, i)
 
-
+''' save results '''
 def postprocess(img):
-    '''save results'''
     img = (img+1)/2*255
     img = img.permute(0,2,3,1)
     img = img.int().cpu().numpy().astype(np.uint8)

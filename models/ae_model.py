@@ -16,7 +16,7 @@ class Model(BaseModel):
     def __init__(self, opt):
         super(Model, self).__init__(opt)
         
-        ''' define network, which is a list'''
+        ''' define networks, which are a list'''
         self.net = networks.define_networks(opt)[0]
 
         ''' define parameters, include loss, optimizers, schedulers, etc.''' 
@@ -53,7 +53,7 @@ class Model(BaseModel):
                     gamma=0.99994,
                     cycle_momentum=False)
                 )
-        ''' load pretrained models  and print network '''
+        ''' load pretrained models and print network '''
         self.load() 
         self.print_network()
 
@@ -89,25 +89,21 @@ class Model(BaseModel):
         self.net.train()
 
     def get_current_visuals(self):
-        ''' return tensor dict to show on tensorboard, key can be arbitrary '''
         self.visuals_dict['input'] = self.input.detach()[0].float().cpu()
         self.visuals_dict['output'] = self.output.detach()[0].float().cpu()
         return self.visuals_dict
 
     def save_current_results(self):
-        ''' return tensor dict to save on given result path, key must contains name and result '''
         self.results_dict['name'] = self.path
         self.results_dict['result'] = self.output
         return self.results_dict
 
     def load(self):
-        ''' load pretrained model and training state '''
         load_path = self.opt['path']['resume_state']
         self.load_network(load_path, network=self.net, network_label="net")
         self.resume_training(load_path)
     
     def save(self, total_iters, total_epoch):
-        ''' save pretrained model and training state, which only do on GPU 0 '''
         if self.opt['global_rank']!=0:
             return
         self.save_network(network=self.net, network_label='net', total_iters=total_iters)

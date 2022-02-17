@@ -1,10 +1,8 @@
 import os
 import os.path as osp
-import logging
 from collections import OrderedDict
 import json
 from datetime import datetime
-
 
 def mkdirs(paths):
     if isinstance(paths, str):
@@ -13,7 +11,6 @@ def mkdirs(paths):
         for path in paths:
             os.makedirs(path, exist_ok=True)
 
-
 def get_timestamp():
     return datetime.now().strftime('%y%m%d_%H%M%S')
 
@@ -21,9 +18,8 @@ class NoneDict(dict):
     def __missing__(self, key):
         return None
 
-
+''' convert to NoneDict, which return None for missing key. '''
 def dict_to_nonedict(opt):
-    ''' convert to NoneDict, which return None for missing key. '''
     if isinstance(opt, dict):
         new_opt = dict()
         for key, sub_opt in opt.items():
@@ -34,8 +30,8 @@ def dict_to_nonedict(opt):
     else:
         return opt
 
+''' dict to string for logger '''
 def dict2str(opt, indent_l=1):
-    '''dict to string for logger'''
     msg = ''
     for k, v in opt.items():
         if isinstance(v, dict):

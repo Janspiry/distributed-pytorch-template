@@ -1,4 +1,3 @@
-import torch.utils.data
 import importlib
 import logging
 from functools import partial
@@ -8,6 +7,8 @@ from torch.utils.data.distributed import DistributedSampler
 
 import core.util as Util
 logger = logging.getLogger('base')
+
+''' create dataloader '''
 def create_dataloader(opt, phase='train'):
     '''create dataset and set random seed'''
     worker_init_fn = partial(Util.set_seed, base=opt['seed'])
@@ -20,7 +21,6 @@ def create_dataloader(opt, phase='train'):
         data_sampler = DistributedSampler(dataset, 
             num_replicas=opt['world_size'], rank=opt['global_rank'])
 
-    '''create dataloader'''
     dataloader = DataLoader(
         dataset,
         batch_size=dataset_opt['batch_size'],
@@ -32,9 +32,11 @@ def create_dataloader(opt, phase='train'):
     )
     return dataloader
 
+
+''' create dataset '''
 def create_dataset(opt, dataset_opt, phase):
-    '''create dataset, loading Dataset() class from given file's name '''
     dataset_name = 'data.'+dataset_opt['name']
+    ''' loading Dataset() class from given file's name '''
     dataset = importlib.import_module(dataset_name).Dataset(dataset_opt, phase=phase)
     if opt['global_rank']==0:
         logger.info('Dataset [{:s} - {:s}] is created. Size is {}. Phase is {}'.format(dataset.name(),

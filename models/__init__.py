@@ -2,6 +2,7 @@ import logging
 import importlib
 logger = logging.getLogger('base')
 
+''' create_model '''
 def create_model(opt):
     model_opt = opt['model']
     try:

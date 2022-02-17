@@ -16,9 +16,8 @@ import core.util as Util
 from data import create_dataloader
 from models import create_model
 
-
+''' init_process_group '''
 def main_worker(gpu, ngpus_per_node, opt):
-    ''' init_process_group '''
     if 'local_rank' not in opt:
         opt['local_rank'] = opt['global_rank'] = gpu
     if opt['distributed']:
@@ -30,7 +29,9 @@ def main_worker(gpu, ngpus_per_node, opt):
             rank = opt['global_rank'],
             group_name='mtorch'
         )
-    '''set seed '''
+    '''set seed and and cuDNN environment '''
+    torch.backends.cudnn.enabled = True
+    warnings.warn('You have chosen to use cudnn for accleration. torch.backends.cudnn.enabled=True')
     Util.set_seed(opt['seed'])
     warnings.warn('You have chosen to seed training. '
                   'This will turn on the CUDNN deterministic setting, '
@@ -126,18 +127,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
     opt = Praser.parse(args)
     
-    ''' set cuda environment '''
+    ''' cuda devices '''
     gpu_str = ','.join(str(x) for x in opt['gpu_ids'])
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_str
     print('export CUDA_VISIBLE_DEVICES={}'.format(gpu_str))
-    torch.backends.cudnn.enabled = True
-    warnings.warn('You have chosen to use cudnn for accleration. torch.backends.cudnn.enabled=True')
 
     ''' use DistributedDataParallel(DDP) and multiprocessing for multi-gpu training'''
     # [Todo]: multi GPU on multi machine
     if opt['distributed']:
-        # ngpus_per_node = torch.cuda.device_count()
-        ngpus_per_node = len(opt['gpu_ids'])
+        ngpus_per_node = len(opt['gpu_ids']) # or torch.cuda.device_count()
         opt['world_size'] = ngpus_per_node
         opt['init_method'] = 'tcp://127.0.0.1:'+ args.port 
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, opt))

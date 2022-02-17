@@ -8,11 +8,8 @@ import importlib
 
 import core.util as Util
 logger = logging.getLogger('base')
-####################
-# initialize
-####################
 
-
+''' weight initialization '''
 def weights_init_normal(m, std=0.02):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -77,9 +74,7 @@ def init_weights(net, init_type='kaiming', scale=1, std=0.02):
             'initialization method [{:s}] not implemented'.format(init_type))
 
 
-####################
-# define network
-####################
+''' define_network '''
 def define_network(opt, network_name, init_type="kaiming"):
     try:
         ''' loading Network() class from given file's name '''
@@ -92,8 +87,8 @@ def define_network(opt, network_name, init_type="kaiming"):
     if opt['phase'] == 'train' and opt['path']['resume_state'] is None:
         init_weights(net, init_type, scale=0.1)
     else:
+        ''' loading from checkpoint, which define in model initialization part '''
         pass
-        # loading from checkpoint, which define in model initialization part
     
     net = Util.set_device(net)
     if opt['distributed']:
@@ -101,6 +96,7 @@ def define_network(opt, network_name, init_type="kaiming"):
                       broadcast_buffers=True, find_unused_parameters=False)
     return net
 
+''' define_networks, which returns a network list '''
 def define_networks(opt):
     model_opt = opt['model']
     network_num = len(model_opt['which_networks'])
