@@ -1,6 +1,14 @@
 import random
 import numpy as np
 import torch
+''' change pytorch[-1, 1] tensor to numpy '''
+def postprocess(img):
+    img = (img+1)/2*255
+    img = img.permute(0,2,3,1)
+    img = img.int().cpu().numpy().astype(np.uint8)
+    return img
+
+
 ''' set random seed, gl_seed used in worker_init_fn function '''
 def set_seed(seed, gl_seed=0):
   if seed >=0 and gl_seed>=0:

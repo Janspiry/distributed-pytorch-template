@@ -36,19 +36,13 @@ def main_worker(gpu, ngpus_per_node, opt):
 
     ''' set logger '''
     Logger.init_logger(opt=opt)
-    base_logger = logging.getLogger('base')
     phase_logger = logging.getLogger(opt['phase'])
-    if opt['phase'] == 'train':
-        val_logger = logging.getLogger('val')
-    if opt['global_rank']==0:
-        base_logger.info(Praser.dict2str(opt))
 
     '''set model and dataset'''
-    data_loader = create_dataloader(opt, phase=opt['phase']) 
     if opt['phase'] == 'train':
-        ''' validation only run on GPU 0 with training '''
-        if opt['global_rank']==0: 
-            val_loader = create_dataloader(opt, phase='val')
+        train_loader, val_loader = create_dataloader(opt, phase='train')
+    else:
+        test_loader = create_dataloader(opt, phase=opt['phase']) 
     model = create_model(opt)
 
     total_epoch, total_iters = model.get_current_iters()
@@ -57,14 +51,15 @@ def main_worker(gpu, ngpus_per_node, opt):
         while True:
             epoch_start_time = time.time()
             total_epoch += 1
+            train_loader.sampler.set_epoch(total_epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
             if total_epoch >= opt['train']['n_epoch']: 
+                phase_logger.info('Number of Epochs has reached the limit, End.')
                 break
 
-            train_pbar = tqdm.tqdm(data_loader)
-            for train_data in train_pbar:
+            for train_data in tqdm.tqdm(train_loader):
                 if total_iters >= opt['train']['n_iter']: 
                     break
-                total_iters += opt['datasets']['train']['batch_size']
+                total_iters += opt['datasets']['train']['dataloader_args']['batch_size']
                 model.set_input(train_data)
                 model.optimize_parameters()
                 
@@ -84,39 +79,32 @@ def main_worker(gpu, ngpus_per_node, opt):
                     if total_iters % opt['train']['val_freq'] == 0:
                         try:
                             # val_loader can be None
-                            val_pbar = tqdm.tqdm(val_loader)
-                            for val_data in val_pbar:
+                            for val_data in tqdm.tqdm(val_loader):
                                 model.set_input(val_data)
                                 model.val()
                                 Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
                                 Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase='val')
                                 Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
                         except:
-                            val_logger.info('Validation error where dataloader maybe not exist, Skip it.')
+                            phase_logger.info('Validation error where dataloader maybe not exist, Skip it.')
             if opt['global_rank']==0:
                 phase_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
-    
     else:
-        data_pbar = tqdm.tqdm(data_loader)
-        for data in data_pbar:
+        for data in tqdm.tqdm(test_loader):
             model.set_input(data)
-            if opt['phase']=='val':
-                model.val()
-            else:
-                model.test()
+            model.test()
             Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase=opt['phase'])
+            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase=opt['phase'])
             Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase=opt['phase'])
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='config/base.json', help='JSON file for configuration')
-    parser.add_argument('-p', '--phase', type=str, choices=['train', 'val', 'test'],
-                        help='Run train(train), val(validation) or test', default='train')
+    parser.add_argument('-p', '--phase', type=str, choices=['train','test'], help='Run train or test', default='train')
     parser.add_argument('-b', '--batch', type=int, default=None, help='Batch size in every gpu')
     parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-P', '--port', default='21012', type=str)
-
 
     ''' parser configs '''
     args = parser.parse_args()

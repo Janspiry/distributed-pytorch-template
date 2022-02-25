@@ -3,6 +3,7 @@ import os
 import numpy as np
 from PIL import Image
 import logging
+import core.util as Util
 # from torch.utils.tensorboard import SummaryWriter\
 from tensorboardX import SummaryWriter
 
@@ -14,8 +15,6 @@ def init_logger(opt):
     phase = opt['phase']
     setup_logger(None, opt['path']['log'], 'base', level=logging.INFO, screen=False)
     setup_logger(phase, opt['path']['log'], phase, level=logging.INFO, screen=False)
-    if phase=='train':
-        setup_logger('val', opt['path']['log'], 'val', level=logging.INFO, screen=False)
     setup_tblogger(log_dir=opt['path']['tb_logger'])    
 
 def setup_tblogger(log_dir):
@@ -55,12 +54,6 @@ def display_current_results(epoch, i, results, phase='val'):
         tb_logger.add_image(phase+"/"+str(k), v, i)
 
 ''' save results '''
-def postprocess(img):
-    img = (img+1)/2*255
-    img = img.permute(0,2,3,1)
-    img = img.int().cpu().numpy().astype(np.uint8)
-    return img
-
 def save_current_results(epoch, i, results, phase='val'):
     global gl_opt
     result_path = os.path.join(gl_opt['path']['results'], phase)
@@ -71,7 +64,7 @@ def save_current_results(epoch, i, results, phase='val'):
     ''' get names and corresponding images from results[OrderedDict] '''
     try:
         names = results['name']
-        outputs = postprocess(results['result'])
+        outputs = Util.postprocess(results['result'])
     except:
         raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
     for i in range(len(names)): 

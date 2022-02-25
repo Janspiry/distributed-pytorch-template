@@ -28,17 +28,11 @@ class Model(BaseModel):
         
             ''' find the parameters to optimize '''
             if opt['finetune_norm']:
-                optim_params = []
                 for k, v in self.net.named_parameters():
-                    v.requires_grad = True
                     if k.find('backbone') >= 0:
                         v.requires_grad = False
-                    else:
-                        optim_params.append(v)
-                        logger.info('Params [{:s}] will optimize.'.format(k))
-            else:
-                optim_params = list(self.net.parameters())
-
+            optim_params = list(filter(lambda p: p.requires_grad, self.net.parameters()))
+           
             ''' optimizers '''
             self.optimizer = torch.optim.Adam(optim_params, lr=1e-4, weight_decay=0)
             self.optimizers.append(self.optimizer)
@@ -58,7 +52,7 @@ class Model(BaseModel):
         self.print_network()
 
     def set_input(self, data):
-        self.input = Util.set_device(data['input'])
+        self.input = Util.set_device(data['input']) # you must use set_device in tensor
         self.path = data['path']
 
     def get_image_paths(self):
@@ -74,18 +68,12 @@ class Model(BaseModel):
         ''' set log '''
         self.log_dict['l_pix'] = l_pix.item()
 
-    def val(self):
+    def test(self):
         self.net.eval()
         with torch.no_grad():
             self.output = self.net(self.input)
             l_pix = self.loss_fn(self.output, self.input)
             self.log_dict['l_pix'] = l_pix.item()
-        self.net.train()
-
-    def test(self):
-        self.net.eval()
-        with torch.no_grad():
-            self.output = self.net(self.input)
         self.net.train()
 
     def get_current_visuals(self):
@@ -94,9 +82,9 @@ class Model(BaseModel):
         return self.visuals_dict
 
     def save_current_results(self):
-        self.results_dict['name'] = self.path
-        self.results_dict['result'] = self.output
-        return self.results_dict
+        self.results_dict._replace(name=self.path)
+        self.results_dict._replace(result=self.output)
+        return self.results_dict._asdict()
 
     def load(self):
         load_path = self.opt['path']['resume_state']

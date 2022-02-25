@@ -1,38 +1,44 @@
 {
     "name": "base", // experiments name
     "gpu_ids": [0], // gpu ids list, default is single 0
-    "seed" : -1, // random seed, seed <0 represents randomization not used 
+    "seed" : 2021, // random seed, seed <0 represents randomization not used 
     "finetune_norm": false, // find the parameters to optimize
-    "path": { //set every part file root
-        "log": "logs", // root of progress logs (logging) 
-        "tb_logger": "tb_logger", // root of tensorboard logger
+
+    "path": { //set every part file path
+        "base_dir": "experiments", // base path for all log
+        "log": "logs", // path of progress logs (logging) 
+        "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
         // "resume_state": "experiments/debug_base_220210_165430/checkpoint/36"
         "resume_state": null // ex: 10000, loading .state  and .pth from given iterations
     },
-    "datasets": { // train|val|test, None part will be skip
+
+    "datasets": { // train or test
         "train": {
             "name": "image_dataset", // use which dataset, indicates dataset's file name
-            "root": "/data/jlw/datasets/comofod",
-            "batch_size": 2, // batch size in every gpu
-            "num_workers": 8,
-            "use_shuffle": true,
-            "pin_memory": true,
-            "data_len": -1 // -1 represents all data used in train
+            "data_root": "/data/jlw/datasets/comofod",
+            "validation_split": 0.1, // percent or number
+            "dataloader_args":{ // kwargs to init dataloader
+                "batch_size": 2, // batch size in every gpu
+                "num_workers": 4,
+                "shuffle": true,
+                "pin_memory": true,
+                "drop_last": true
+            }
         },
-        "val": {
+        "test": { 
             "name": "image_dataset",
-            "root": "/data/jlw/datasets/comofod",
-            "batch_size": 1,
-            "num_workers": 4,
-            "pin_memory": true,
-            "data_len": 50
-        },
-        "test": { // to do 
-            
+            "data_root": "/data/jlw/datasets/comofod",
+            "dataloader_args":{
+                "batch_size": 1,
+                "num_workers": 4,
+                "shuffle": false,
+                "pin_memory": true
+            }
         }
     },
+
     "model": {
         "which_model": "ae_model", // use which model(trainer), indicates trainer's file name in models path
         "which_networks": [
@@ -42,8 +48,9 @@
             "kaiming"
         ] // list of network weights initialization method, can be [orthogonal|kaiming|normal], default is kaiming
     },
+
     "train": {
-        "n_iter": 1000000, // max iterations
+        "n_iter": 1e6, // max iterations
         "n_epoch": 1e5, // max epochs, not limited now
         
         "val_freq": 1e5, // valdation each number of interval samples 

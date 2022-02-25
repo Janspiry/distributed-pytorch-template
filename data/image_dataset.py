@@ -32,19 +32,9 @@ class Dataset(data.Dataset):
     def name(self):
         return 'ImageDataset'
     def __init__(self, opt, phase='train', image_size=[256, 256], loader=pil_loader):
-        root = opt['root']
+        root = opt['data_root']
         imgs = make_dataset(root)
-        if len(imgs) == 0:
-            raise(RuntimeError("Found 0 images in: " + root + "\n"
-                               "Supported image extensions are: " +
-                               ",".join(IMG_EXTENSIONS)))
-
-        self.root = root
-        if opt['data_len'] < 0:
-            opt['data_len'] = len(imgs)
-        self.data_len = min(len(imgs), opt['data_len'])
-        self.imgs = imgs[:self.data_len]
-
+        self.imgs = imgs
         if phase == 'train':
             self.tfs = transforms.Compose([
                  transforms.Resize((image_size[0], image_size[1])),

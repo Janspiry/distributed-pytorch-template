@@ -93,7 +93,7 @@ def define_network(opt, network_name, init_type="kaiming"):
     net = Util.set_device(net)
     if opt['distributed']:
         net = DDP(net, device_ids=[opt['global_rank']], output_device=opt['global_rank'], 
-                      broadcast_buffers=True, find_unused_parameters=False)
+                      broadcast_buffers=True, find_unused_parameters=True)
     return net
 
 ''' define_networks, which returns a network list '''

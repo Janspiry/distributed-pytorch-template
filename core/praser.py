@@ -2,6 +2,7 @@ import os
 import os.path as osp
 from collections import OrderedDict
 import json
+from pathlib import Path
 from datetime import datetime
 
 def mkdirs(paths):
@@ -13,6 +14,12 @@ def mkdirs(paths):
 
 def get_timestamp():
     return datetime.now().strftime('%y%m%d_%H%M%S')
+
+
+def write_json(content, fname):
+    fname = Path(fname)
+    with fname.open('wt') as handle:
+        json.dump(content, handle, indent=4, sort_keys=False)
 
 class NoneDict(dict):
     def __missing__(self, key):
@@ -50,23 +57,12 @@ def parse(args):
             json_str += line
     opt = json.loads(json_str, object_pairs_hook=OrderedDict)
 
-    ''' set log directory '''
-    if args.debug:
-        opt['name'] = 'debug_{}'.format(opt['name'])
-    experiments_root = os.path.join(
-        'experiments', '{}_{}'.format(opt['name'], get_timestamp()))
-    opt['path']['experiments_root'] = experiments_root
-    for key, path in opt['path'].items():
-        if 'resume' not in key and 'experiments' not in key:
-            opt['path'][key] = os.path.join(experiments_root, path)
-            mkdirs(opt['path'][key])
-
     ''' replace the config context using args '''
     opt['phase'] = args.phase
     if args.gpu_ids is not None:
         opt['gpu_ids'] = [int(id) for id in args.gpu_ids.split(',')]
     if args.batch is not None:
-        opt['datasets'][opt['phase']]['batch_size'] = args.batch
+        opt['datasets'][opt['phase']]['dataloader_args']['batch_size'] = args.batch
  
     ''' set cuda environment '''
     if len(opt['gpu_ids']) > 1:
@@ -74,15 +70,28 @@ def parse(args):
     else:
         opt['distributed'] = False
 
+    ''' set log directory '''
+    if args.debug:
+        opt['name'] = 'debug_{}'.format(opt['name'])
+    if opt['finetune_norm']:
+        opt['name'] = 'finetune_{}'.format(opt['name'])
+
+    experiments_root = os.path.join(opt['path']['base_dir'], '{}_{}'.format(opt['name'], get_timestamp()))
+    opt['path']['experiments_root'] = experiments_root
+
+    ''' save json '''
+    write_json(opt, '{}/config.json'.format(opt['path']['experiments_root']))
+
+    for key, path in opt['path'].items():
+        if 'resume' not in key and 'experiments' not in key:
+            opt['path'][key] = os.path.join(experiments_root, path)
+            mkdirs(opt['path'][key])
+
     ''' debug mode '''
     if 'debug' in opt['name']:
         opt['train']['val_freq'] = 4
         opt['train']['print_freq'] = 4
         opt['train']['save_checkpoint_freq'] = 4
-        opt['datasets']['train']['batch_size'] = 2*len(opt['gpu_ids'])
-        opt['datasets']['train']['data_len'] = 10*len(opt['gpu_ids'])
-        opt['datasets']['val']['data_len'] = 10*len(opt['gpu_ids'])
-
     return dict_to_nonedict(opt)
 
 

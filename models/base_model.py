@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import logging
+import collections
 from collections import OrderedDict
 import core.util as Util
 logger = logging.getLogger('base')
@@ -29,17 +30,15 @@ class BaseModel():
         ''' log and visual result dict '''
         self.log_dict = OrderedDict()
         self.visuals_dict = OrderedDict()
-        self.results_dict = OrderedDict({"name":[], "result":[]})
+
+        CustomResult = collections.namedtuple('CustomResult', 'name result')
+        self.results_dict = CustomResult([],[]) # {"name":[], "result":[]}
 
 
     def set_input(self, input):
         self.input = Util.set_device(input)
 
     def forward(self):
-        pass
-    
-    '''used in validation time, no backprop'''
-    def val(self):
         pass
     
     '''used in test time, no backprop'''
@@ -114,7 +113,7 @@ class BaseModel():
         logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
         if isinstance(network, nn.DataParallel):
             network = network.module
-        network.load_state_dict(torch.load(model_path), strict=strict)
+        network.load_state_dict(torch.load(model_path, map_location = lambda storage, loc: Util.set_device(storage)), strict=strict)
 
     ''' saves training state during training '''
     def save_training_state(self, epoch, iter_step):
