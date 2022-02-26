@@ -1,8 +1,8 @@
 import torch.nn as nn
 from .base_network import BaseNetwork
 class Network(BaseNetwork):
-    def __init__(self, in_channels=3):
-        super(Network, self).__init__()
+    def __init__(self, in_channels=3, **kwargs):
+        super(Network, self).__init__(**kwargs)
 
         self.in_channels = in_channels
         cnums = 64

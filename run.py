@@ -55,7 +55,7 @@ def main_worker(gpu, ngpus_per_node, opt):
             for train_data in tqdm.tqdm(phase_loader):
                 if total_iters >= opt['train']['n_iter']: 
                     break
-                total_iters += opt['datasets']['train']['dataloader_args']['batch_size']
+                total_iters += opt['datasets']['train']['dataloader']['args']['batch_size']
                 model.set_input(train_data)
                 model.optimize_parameters()
                 
@@ -73,16 +73,17 @@ def main_worker(gpu, ngpus_per_node, opt):
                         model.save(total_iters, total_epoch)
                     
                     if total_iters % opt['train']['val_freq'] == 0:
-                        try:
-                            # val_loader can be None
+                        phase_logger.info("\n\n\n------------------------------Validation Start------------------------------")
+                        if val_loader is None:
+                            phase_logger.info('Validation stop where dataloader is None, Skip it.')
+                        else:
                             for val_data in tqdm.tqdm(val_loader):
                                 model.set_input(val_data)
                                 model.val()
                                 Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
                                 Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase='val')
-                                Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='val')
-                        except:
-                            phase_logger.info('Validation error where dataloader maybe not exist, Skip it.')
+                            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='train')
+                        phase_logger.info("\n------------------------------Validation End------------------------------\n\n")
             if opt['global_rank']==0:
                 phase_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
     else:

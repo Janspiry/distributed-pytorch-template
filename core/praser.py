@@ -77,14 +77,14 @@ def parse(args):
         opt['name'] = 'finetune_{}'.format(opt['name'])
 
     experiments_root = os.path.join(opt['path']['base_dir'], '{}_{}'.format(opt['name'], get_timestamp()))
-    opt['path']['experiments_root'] = experiments_root
+    mkdirs(experiments_root)
 
     ''' save json '''
     write_json(opt, '{}/config.json'.format(experiments_root))
 
     ''' change folder relative hierarchy'''
     for key, path in opt['path'].items():
-        if 'resume' not in key and 'experiments' not in key:
+        if 'resume' not in key and 'base_dir' not in key:
             opt['path'][key] = os.path.join(experiments_root, path)
             mkdirs(opt['path'][key])
 

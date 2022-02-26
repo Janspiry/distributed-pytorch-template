@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 import logging
 import core.util as Util
-# from torch.utils.tensorboard import SummaryWriter\
+# from torch.utils.tensorboard import SummaryWriter
 from tensorboardX import SummaryWriter
 
 tb_logger = None

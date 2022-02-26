@@ -11,8 +11,8 @@ import core.util as Util
 logger = logging.getLogger('base')
 
 class Model(BaseModel):
-    def __init__(self, networks, phase, rank, save_dir, resume_dir=None, finetune_norm=False):
-        super(Model, self).__init__(networks, phase, rank, save_dir, resume_dir, finetune_norm)
+    def __init__(self, **kwargs):
+        super(Model, self).__init__(**kwargs)
         
         ''' networks are a list'''
         self.netG = self.networks[0] # get the defined network
@@ -64,6 +64,14 @@ class Model(BaseModel):
         ''' set log '''
         self.log_dict['l_pix'] = l_pix.item()
 
+    def val(self):
+        self.netG.eval()
+        with torch.no_grad():
+            self.output = self.netG(self.input)
+            l_pix = self.loss_fn(self.output, self.input)
+            self.log_dict['l_pix'] = l_pix.item()
+        self.netG.train()
+
     def test(self):
         self.netG.eval()
         with torch.no_grad():
@@ -78,8 +86,7 @@ class Model(BaseModel):
         return self.visuals_dict
 
     def save_current_results(self):
-        self.results_dict._replace(name=self.path)
-        self.results_dict._replace(result=self.output)
+        self.results_dict = self.results_dict._replace(name=self.path, result=self.output)
         return self.results_dict._asdict()
 
     def load(self):
@@ -87,6 +94,6 @@ class Model(BaseModel):
         self.resume_training()
     
     def save(self, total_iters, total_epoch):
-        self.save_network(network=self.netG, network_label='netG', total_iters=total_iters)
+        self.save_network(network=self.netG, network_label='netG', iter_step=total_iters)
         self.save_training_state(total_epoch, total_iters)
 

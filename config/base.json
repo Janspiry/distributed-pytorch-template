@@ -10,7 +10,7 @@
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        // "resume_state": "experiments/debug_base_220210_165430/checkpoint/36" 
+        // "resume_state": "experiments/debug_base_220226_214326/checkpoint/100" 
         "resume_state": null // ex: 10000, loading .state  and .pth from given iterations
     },
 
@@ -20,7 +20,7 @@
                 "name": ["image_dataset", "Dataset"], // import image_dataset.py and Dataset() class
                 "validation_split": 0.1, // percent or number
                 "args":{ // args to init dataset
-                    "data_root": "/data/jlw/datasets/comofod"
+                    "data_root": "/home/huangyecheng/dataset/cmfd/comofod" // /home/huangyecheng/dataset/cmfd/comofod
                 } 
             },
             "dataloader":{
@@ -58,7 +58,7 @@
         }, 
         "which_networks": [ // list of network structure, indicates network's file name and class in [models/network] directory
             {
-                "name": ["ae_model", "Network"], // ae_model.py and Network() class
+                "name": ["ae", "Network"], // ae_model.py and Network() class
                 "args": {
                     "init_type": "kaiming" //network weights initialization method, can be [orthogonal|kaiming|normal], default is kaiming
                 }
@@ -76,9 +76,10 @@
     },
     
     "debug": { // args in debug mode, which will replace args in train
-        "val_freq": 4,
-        "save_checkpoint_freq": 4,
-        "display_freq": 4,
-        "print_freq": 4
+        "val_freq": 50,
+        "save_checkpoint_freq": 100,
+        "display_freq": 50,
+        "print_freq": 30,
+        "data_len": 100 // dataset size
     }
 }

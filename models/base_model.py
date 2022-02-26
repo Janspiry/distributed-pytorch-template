@@ -37,6 +37,10 @@ class BaseModel():
     def forward(self):
         pass
     
+    '''used in val time, no backprop'''
+    def val(self):
+        pass
+
     '''used in test time, no backprop'''
     def test(self):
         pass
