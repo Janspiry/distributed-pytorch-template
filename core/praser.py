@@ -80,8 +80,9 @@ def parse(args):
     opt['path']['experiments_root'] = experiments_root
 
     ''' save json '''
-    write_json(opt, '{}/config.json'.format(opt['path']['experiments_root']))
+    write_json(opt, '{}/config.json'.format(experiments_root))
 
+    ''' change folder relative hierarchy'''
     for key, path in opt['path'].items():
         if 'resume' not in key and 'experiments' not in key:
             opt['path'][key] = os.path.join(experiments_root, path)
@@ -89,9 +90,7 @@ def parse(args):
 
     ''' debug mode '''
     if 'debug' in opt['name']:
-        opt['train']['val_freq'] = 4
-        opt['train']['print_freq'] = 4
-        opt['train']['save_checkpoint_freq'] = 4
+        opt['train'].update(opt['debug'])
     return dict_to_nonedict(opt)
 
 

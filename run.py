@@ -1,7 +1,5 @@
 import argparse
-from email.policy import default
 import logging
-from cv2 import phase
 import tqdm
 import time
 import os
@@ -39,10 +37,7 @@ def main_worker(gpu, ngpus_per_node, opt):
     phase_logger = logging.getLogger(opt['phase'])
 
     '''set model and dataset'''
-    if opt['phase'] == 'train':
-        train_loader, val_loader = create_dataloader(opt, phase='train')
-    else:
-        test_loader = create_dataloader(opt, phase=opt['phase']) 
+    phase_loader, val_loader = create_dataloader(opt) # val_loader is None if phase is test.
     model = create_model(opt)
 
     total_epoch, total_iters = model.get_current_iters()
@@ -51,12 +46,13 @@ def main_worker(gpu, ngpus_per_node, opt):
         while True:
             epoch_start_time = time.time()
             total_epoch += 1
-            train_loader.sampler.set_epoch(total_epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
+            if opt['distributed']:
+                phase_loader.sampler.set_epoch(total_epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
             if total_epoch >= opt['train']['n_epoch']: 
                 phase_logger.info('Number of Epochs has reached the limit, End.')
                 break
 
-            for train_data in tqdm.tqdm(train_loader):
+            for train_data in tqdm.tqdm(phase_loader):
                 if total_iters >= opt['train']['n_iter']: 
                     break
                 total_iters += opt['datasets']['train']['dataloader_args']['batch_size']
@@ -90,7 +86,7 @@ def main_worker(gpu, ngpus_per_node, opt):
             if opt['global_rank']==0:
                 phase_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
     else:
-        for data in tqdm.tqdm(test_loader):
+        for data in tqdm.tqdm(phase_loader):
             model.set_input(data)
             model.test()
             Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase=opt['phase'])

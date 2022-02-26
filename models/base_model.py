@@ -7,23 +7,19 @@ from collections import OrderedDict
 import core.util as Util
 logger = logging.getLogger('base')
 class BaseModel():
-    def name(self):
-        return 'BaseModel'
-
-    def __init__(self, opt):
-        self.opt = opt
-        self.phase = opt['phase']
-
-        ''' cuda enviroment'''
-        self.gpu_ids = opt['gpu_ids']
-        self.Tensor = torch.cuda.FloatTensor if self.gpu_ids else torch.Tensor
+    def __init__(self, networks, phase, rank, save_dir, resume_dir=None, finetune_norm=False):
+        self.phase = phase
+        self.rank = rank
+        self.finetune_norm = finetune_norm
 
         ''' process record '''
-        self.save_dir = opt['path']['checkpoint']
+        self.save_dir = save_dir
+        self.resume_dir = resume_dir
         self.epoch = 0
         self.iter = 0
 
-        ''' optimizers '''
+        ''' networks and optimizers '''
+        self.networks = networks
         self.schedulers = []
         self.optimizers = []
 
@@ -83,20 +79,22 @@ class BaseModel():
     ''' load pretrained model and training state '''
     def load(self):
         pass
-        
-    def print_network(self):
-        if self.opt['global_rank']!=0:
+    
+
+    def print_network(self, network):
+        if self.rank!=0:
             return
-        s, n = self.get_network_description(self.net)
-        if isinstance(self.net, nn.DataParallel):
-            net_struc_str = '{} - {}'.format(self.net.__class__.__name__,
-                                             self.net.module.__class__.__name__)
+        s, n = self.get_network_description(network)
+        if isinstance(network, nn.DataParallel):
+            net_struc_str = '{} - {}'.format(network.__class__.__name__, network.module.__class__.__name__)
         else:
-            net_struc_str = '{}'.format(self.net.__class__.__name__)
+            net_struc_str = '{}'.format(network.__class__.__name__)
         logger.info('Network structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
         logger.info(s)
 
     def save_network(self, network, network_label, iter_step):
+        if self.rank!=0:
+            return
         save_filename = '{}_{}.pth'.format(iter_step, network_label)
         save_path = os.path.join(self.save_dir, save_filename)
         if isinstance(network, nn.DataParallel):
@@ -106,10 +104,10 @@ class BaseModel():
             state_dict[key] = param.cpu()
         torch.save(state_dict, save_path)
 
-    def load_network(self, load_path, network, network_label, strict=True):
-        if load_path is None:
+    def load_network(self, network, network_label, strict=True):
+        if self.resume_dir is None:
             return 
-        model_path = "{}_{}.pth".format(load_path, network_label)
+        model_path = "{}_{}.pth".format(self.resume_dir, network_label)
         logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
         if isinstance(network, nn.DataParallel):
             network = network.module
@@ -127,14 +125,13 @@ class BaseModel():
         torch.save(state, save_path)
 
     ''' resume the optimizers and schedulers for training '''
-    def resume_training(self, load_path):
-        if self.phase!='train' or load_path is None:
+    def resume_training(self):
+        if self.phase!='train' or self.resume_dir is None:
             return
-        state_path = "{}.state".format(load_path)
+        state_path = "{}.state".format(self.resume_dir)
         logger.info('Loading training state for [{:s}] ...'.format(state_path))
-        resume_state = torch.load(state_path)
-        self.epoch = resume_state['epoch']
-        self.iter = resume_state['iter']
+        resume_state = torch.load(state_path, map_location = lambda storage, loc: Util.set_device(storage))
+        
         resume_optimizers = resume_state['optimizers']
         resume_schedulers = resume_state['schedulers']
         assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
@@ -143,6 +140,9 @@ class BaseModel():
             self.optimizers[i].load_state_dict(o)
         for i, s in enumerate(resume_schedulers):
             self.schedulers[i].load_state_dict(s)
+
+        self.epoch = resume_state['epoch']
+        self.iter = resume_state['iter']
 
     ''' get the string and total parameters of the network'''
     def get_network_description(self, network):

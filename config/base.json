@@ -5,57 +5,80 @@
     "finetune_norm": false, // find the parameters to optimize
 
     "path": { //set every part file path
-        "base_dir": "experiments", // base path for all log
+        "base_dir": "experiments", // base path for all log except resume_state
         "log": "logs", // path of progress logs (logging) 
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        // "resume_state": "experiments/debug_base_220210_165430/checkpoint/36"
+        // "resume_state": "experiments/debug_base_220210_165430/checkpoint/36" 
         "resume_state": null // ex: 10000, loading .state  and .pth from given iterations
     },
 
     "datasets": { // train or test
-        "train": {
-            "name": "image_dataset", // use which dataset, indicates dataset's file name
-            "data_root": "/data/jlw/datasets/comofod",
-            "validation_split": 0.1, // percent or number
-            "dataloader_args":{ // kwargs to init dataloader
-                "batch_size": 2, // batch size in every gpu
-                "num_workers": 4,
-                "shuffle": true,
-                "pin_memory": true,
-                "drop_last": true
+        "train": { 
+            "which_dataset": {  // use which dataset, indicates dataset's file name and class in [data] directory
+                "name": ["image_dataset", "Dataset"], // import image_dataset.py and Dataset() class
+                "validation_split": 0.1, // percent or number
+                "args":{ // args to init dataset
+                    "data_root": "/data/jlw/datasets/comofod"
+                } 
+            },
+            "dataloader":{
+                "args":{ // args to init dataloader
+                    "batch_size": 2, // batch size in every gpu
+                    "num_workers": 4,
+                    "shuffle": true,
+                    "pin_memory": true,
+                    "drop_last": true
+                }
             }
         },
         "test": { 
-            "name": "image_dataset",
-            "data_root": "/data/jlw/datasets/comofod",
-            "dataloader_args":{
-                "batch_size": 1,
-                "num_workers": 4,
-                "shuffle": false,
-                "pin_memory": true
+            "which_dataset": {
+                "name": ["image_dataset", "Dataset"], // import image_dataset.py and Dataset() class
+                "args":{
+                    "data_root": "/data/jlw/datasets/comofod",
+                    "phase": "test"
+                }
+            },
+            "dataloader":{
+                "args":{
+                    "batch_size": 1,
+                    "num_workers": 4,
+                    "pin_memory": true
+                }
             }
         }
     },
 
     "model": {
-        "which_model": "ae_model", // use which model(trainer), indicates trainer's file name in models path
-        "which_networks": [
-            "ae"
-        ], // list of network structure, indicates network's file name in models/network path
-        "init_types" : [
-            "kaiming"
-        ] // list of network weights initialization method, can be [orthogonal|kaiming|normal], default is kaiming
+        "which_model": { // use which model(trainer), indicates trainer's file and class in [models] directory
+            "name": ["ae_model", "Model"], // import ae_model.py and Model() class
+            "args": {} 
+        }, 
+        "which_networks": [ // list of network structure, indicates network's file name and class in [models/network] directory
+            {
+                "name": ["ae_model", "Network"], // ae_model.py and Network() class
+                "args": {
+                    "init_type": "kaiming" //network weights initialization method, can be [orthogonal|kaiming|normal], default is kaiming
+                }
+            }
+        ]
     },
 
     "train": {
         "n_iter": 1e6, // max iterations
         "n_epoch": 1e5, // max epochs, not limited now
-        
-        "val_freq": 1e5, // valdation each number of interval samples 
+        "val_freq": 1e5, // valdation every specified number of interations
         "save_checkpoint_freq": 1e5,
         "display_freq": 1e4,
         "print_freq": 1e3
+    },
+    
+    "debug": { // args in debug mode, which will replace args in train
+        "val_freq": 4,
+        "save_checkpoint_freq": 4,
+        "display_freq": 4,
+        "print_freq": 4
     }
 }

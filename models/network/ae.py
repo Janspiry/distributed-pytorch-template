@@ -1,9 +1,7 @@
 import torch.nn as nn
-
-class Network(nn.Module):
-    def name(self):
-        return 'ConvAutoEncoder'
-    def __init__(self, opt=None, in_channels=3):
+from .base_network import BaseNetwork
+class Network(BaseNetwork):
+    def __init__(self, in_channels=3):
         super(Network, self).__init__()
 
         self.in_channels = in_channels

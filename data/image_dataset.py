@@ -1,9 +1,10 @@
 import torch.utils.data as data
 from torchvision import transforms
-from .auto_augment import AutoAugment, ImageNetAutoAugment
 from PIL import Image
 import os
 import os.path
+
+from .auto_augment import AutoAugment, ImageNetAutoAugment
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
@@ -29,11 +30,8 @@ def pil_loader(path):
     return Image.open(path).convert('RGB')
 
 class Dataset(data.Dataset):
-    def name(self):
-        return 'ImageDataset'
-    def __init__(self, opt, phase='train', image_size=[256, 256], loader=pil_loader):
-        root = opt['data_root']
-        imgs = make_dataset(root)
+    def __init__(self, data_root, phase='train', image_size=[256, 256], loader=pil_loader):
+        imgs = make_dataset(data_root)
         self.imgs = imgs
         if phase == 'train':
             self.tfs = transforms.Compose([
