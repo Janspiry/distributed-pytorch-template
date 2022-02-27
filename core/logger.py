@@ -1,73 +1,155 @@
-from genericpath import exists
 import os
-import numpy as np
 from PIL import Image
+import importlib
+from datetime import datetime
 import logging
+import pandas as pd
+
 import core.util as Util
-# from torch.utils.tensorboard import SummaryWriter
-from tensorboardX import SummaryWriter
 
-tb_logger = None
-gl_opt = None
-def init_logger(opt):
-    global gl_opt 
-    gl_opt = opt
-    phase = opt['phase']
-    setup_logger(None, opt['path']['log'], 'base', level=logging.INFO, screen=False)
-    setup_logger(phase, opt['path']['log'], phase, level=logging.INFO, screen=False)
-    setup_tblogger(log_dir=opt['path']['tb_logger'])    
+class InfoLogger():
+    def __init__(self, opt):
+        self.opt = opt
+        self.rank = opt['global_rank']
+        self.phase = opt['phase']
 
-def setup_tblogger(log_dir):
-    global tb_logger
-    tb_logger = SummaryWriter(log_dir)
+        self.setup_logger(None, opt['path']['experiments_root'], 'base', level=logging.INFO, screen=False)
+        self.logger = logging.getLogger('base')
+        self.infologger_ftns = {'info', 'warning', 'debug'}
 
-''' set up logger '''
-def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
-    l = logging.getLogger(logger_name)
-    formatter = logging.Formatter(
-        '%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s', datefmt='%y-%m-%d %H:%M:%S')
-    log_file = os.path.join(root, '{}.log'.format(phase))
-    fh = logging.FileHandler(log_file, mode='a+')
-    fh.setFormatter(formatter)
-    l.setLevel(level)
-    l.addHandler(fh)
-    if screen:
-        sh = logging.StreamHandler()
-        sh.setFormatter(formatter)
-        l.addHandler(sh)
+    def __getattr__(self, name):
+        if self.rank !=0: # info only print on GPU 0.
+            return
+        if name in self.infologger_ftns:
+            print_info = getattr(self.logger, name, None)
+            def wrapper(info, *args, **kwargs):
+                print_info(info, *args, **kwargs)
+            return wrapper
+    
+    ''' set up logger '''
+    @staticmethod
+    def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
+        l = logging.getLogger(logger_name)
+        formatter = logging.Formatter(
+            '%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s', datefmt='%y-%m-%d %H:%M:%S')
+        log_file = os.path.join(root, '{}.log'.format(phase))
+        fh = logging.FileHandler(log_file, mode='a+')
+        fh.setFormatter(formatter)
+        l.setLevel(level)
+        l.addHandler(fh)
+        if screen:
+            sh = logging.StreamHandler()
+            sh.setFormatter(formatter)
+            l.addHandler(sh)
 
-def print_current_logs(epoch, i, errors, phase='train'):
-    message = '<epoch: {:.0f}, iters: {:.0f}>'.format(epoch, i)
-    for k, v in errors.items():
-        message += k + ': ' + '{:.4f}'.format(v) + ' |'
-    logger =  logging.getLogger(phase)
-    logger.info(message)
+class VisualWriter():
+    def __init__(self, opt, logger):
+        log_dir = opt['path']['tb_logger']
+        self.result_dir = opt['path']['results']
+        enabled = opt['train']['tensorboard']
+        
+        self.writer = None
+        self.selected_module = ""
 
-def display_current_logs(epoch, i, errors, phase='train'):
-    global tb_logger
-    for k, v in errors.items():
-        tb_logger.add_scalar(phase+"/"+str(k), v, i)
+        if enabled:
+            log_dir = str(log_dir)
 
-def display_current_results(epoch, i, results, phase='val'):
-    global tb_logger
-    for k, v in results.items():
-        tb_logger.add_image(phase+"/"+str(k), v, i)
+            # Retrieve vizualization writer.
+            succeeded = False
+            for module in ["torch.utils.tensorboard", "tensorboardX"]:
+                try:
+                    self.writer = importlib.import_module(module).SummaryWriter(log_dir)
+                    succeeded = True
+                    break
+                except ImportError:
+                    succeeded = False
+                self.selected_module = module
 
-''' save results '''
-def save_current_results(epoch, i, results, phase='val'):
-    global gl_opt
-    result_path = os.path.join(gl_opt['path']['results'], phase)
-    os.makedirs(result_path, exist_ok=True)
-    result_path = os.path.join(result_path, str(i))
-    os.makedirs(result_path, exist_ok=True)
+            if not succeeded:
+                message = "Warning: visualization (Tensorboard) is configured to use, but currently not installed on " \
+                    "this machine. Please install TensorboardX with 'pip install tensorboardx', upgrade PyTorch to " \
+                    "version >= 1.1 to use 'torch.utils.tensorboard' or turn off the option in the 'config.json' file."
+                logger.warning(message)
 
-    ''' get names and corresponding images from results[OrderedDict] '''
-    try:
-        names = results['name']
-        outputs = Util.postprocess(results['result'])
-    except:
-        raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
-    for i in range(len(names)): 
-        Image.fromarray(outputs[i]).save(os.path.join(result_path, names[i]))
+        self.iter = 0
+        self.phase = ''
+
+        self.tb_writer_ftns = {
+            'add_scalar', 'add_scalars', 'add_image', 'add_images', 'add_audio',
+            'add_text', 'add_histogram', 'add_pr_curve', 'add_embedding'
+        }
+        self.tag_mode_exceptions = {'add_histogram', 'add_embedding'}
+        self.custom_ftns = {'save_images'}
+        self.timer = datetime.now()
+
+    def set_iter(self, iter, phase='train'):
+        self.phase = phase
+        self.iter = iter
+
+    def save_images(self, results):
+        result_path = os.path.join(self.result_dir, self.phase)
+        os.makedirs(result_path, exist_ok=True)
+        result_path = os.path.join(result_path, str(self.iter))
+        os.makedirs(result_path, exist_ok=True)
+
+        ''' get names and corresponding images from results[OrderedDict] '''
+        try:
+            names = results['name']
+            outputs = Util.postprocess(results['result'])
+            for i in range(len(names)): 
+                Image.fromarray(outputs[i]).save(os.path.join(result_path, names[i]))
+        except:
+            raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
 
 
+    def __getattr__(self, name):
+        """
+        If visualization is configured to use:
+            return add_data() methods of tensorboard with additional information (step, tag) added.
+        Otherwise:
+            return a blank function handle that does nothing
+        """
+        if name in self.tb_writer_ftns:
+            add_data = getattr(self.writer, name, None)
+
+            def wrapper(tag, data, *args, **kwargs):
+                if add_data is not None:
+                    # add phase(train/valid) tag
+                    if name not in self.tag_mode_exceptions:
+                        tag = '{}/{}'.format(self.phase, tag)
+                    add_data(tag, data, self.iter, *args, **kwargs)
+            return wrapper
+        elif name in self.custom_ftns:
+            return object.__getattr__(name)
+        else:
+            # default action for returning methods defined in this class, set_step() for instance.
+            try:
+                attr = object.__getattr__(name)
+            except AttributeError:
+                raise AttributeError("type object '{}' has no attribute '{}'".format(self.selected_module, name))
+            return attr
+
+
+class LogTracker:
+    def __init__(self, *keys, writer=None, phase='train'):
+        self.writer = writer
+        self.phase = phase
+        self._data = pd.DataFrame(index=keys, columns=['total', 'counts', 'average'])
+        self.reset()
+
+    def reset(self):
+        for col in self._data.columns:
+            self._data[col].values[:] = 0
+
+    def update(self, key, value, n=1):
+        if self.writer is not None:
+            self.writer.add_scalar('{}/{}'.format(self.phase, key), value)
+        self._data.total[key] += value * n
+        self._data.counts[key] += n
+        self._data.average[key] = self._data.total[key] / self._data.counts[key]
+
+    def avg(self, key):
+        return self._data.average[key]
+
+    def result(self):
+        return {'{}/{}'.format(self.phase, k):v for k, v in dict(self._data.average).items()}

@@ -83,8 +83,9 @@ def parse(args):
     write_json(opt, '{}/config.json'.format(experiments_root))
 
     ''' change folder relative hierarchy'''
+    opt['path']['experiments_root'] = experiments_root
     for key, path in opt['path'].items():
-        if 'resume' not in key and 'base_dir' not in key:
+        if 'resume' not in key and 'base' not in key and 'root' not in key:
             opt['path'][key] = os.path.join(experiments_root, path)
             mkdirs(opt['path'][key])
 

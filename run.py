@@ -1,18 +1,16 @@
 import argparse
-import logging
-import tqdm
-import time
 import os
 import warnings
+import importlib
 
 import torch
 import torch.multiprocessing as mp
 
-import core.logger as Logger
+from core.logger import VisualWriter, InfoLogger
 import core.praser as Praser
 import core.util as Util
 from data import create_dataloader
-from models import create_model
+from models import create_model, define_networks
 
 ''' init_process_group '''
 def main_worker(gpu, ngpus_per_node, opt):
@@ -33,67 +31,34 @@ def main_worker(gpu, ngpus_per_node, opt):
     Util.set_seed(opt['seed'])
 
     ''' set logger '''
-    Logger.init_logger(opt=opt)
-    phase_logger = logging.getLogger(opt['phase'])
+    phase_logger = InfoLogger(opt)
+    phase_writer = VisualWriter(opt, phase_logger)  
 
-    '''set model and dataset'''
+    '''set networks and dataset'''
     phase_loader, val_loader = create_dataloader(opt) # val_loader is None if phase is test.
-    model = create_model(opt)
+    networks = define_networks(opt)
 
-    total_epoch, total_iters = model.get_current_iters()
+    ''' set metrics and loss '''
+    module_metric = importlib.import_module('models.metric')
+    metrics = [getattr(module_metric, met) for met in opt['model']['which_metrics']]
+
+    model = create_model(
+        opt = opt,
+        networks = networks,
+        phase_loader = phase_loader,
+        val_loader = val_loader,
+        metrics = metrics,
+        logger = phase_logger,
+        writer = phase_writer
+    )
+
     phase_logger.info('Begin model {}.'.format(opt['phase']))
     if opt['phase'] == 'train':
-        while True:
-            epoch_start_time = time.time()
-            total_epoch += 1
-            if opt['distributed']:
-                phase_loader.sampler.set_epoch(total_epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
-            if total_epoch >= opt['train']['n_epoch']: 
-                phase_logger.info('Number of Epochs has reached the limit, End.')
-                break
-
-            for train_data in tqdm.tqdm(phase_loader):
-                if total_iters >= opt['train']['n_iter']: 
-                    break
-                total_iters += opt['datasets']['train']['dataloader']['args']['batch_size']
-                model.set_input(train_data)
-                model.optimize_parameters()
-                
-                if opt['global_rank']==0:
-                    if total_iters % opt['train']['display_freq'] == 0:
-                        Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='train')
-
-                    if total_iters % opt['train']['print_freq'] == 0:
-                        logs = model.get_current_log()
-                        Logger.print_current_logs(total_epoch, total_iters, logs, phase='train')
-                        Logger.display_current_logs(total_epoch, total_iters, logs, phase='train')
-
-                    if total_iters % opt['train']['save_checkpoint_freq'] == 0:
-                        phase_logger.info('Saving the model at the end of epoch {:.0f}, iters {:.0f}'.format(total_epoch, total_iters))
-                        model.save(total_iters, total_epoch)
-                    
-                    if total_iters % opt['train']['val_freq'] == 0:
-                        phase_logger.info("\n\n\n------------------------------Validation Start------------------------------")
-                        if val_loader is None:
-                            phase_logger.info('Validation stop where dataloader is None, Skip it.')
-                        else:
-                            for val_data in tqdm.tqdm(val_loader):
-                                model.set_input(val_data)
-                                model.val()
-                                Logger.display_current_results(total_epoch, total_iters, model.get_current_visuals(), phase='val')
-                                Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase='val')
-                            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase='train')
-                        phase_logger.info("\n------------------------------Validation End------------------------------\n\n")
-            if opt['global_rank']==0:
-                phase_logger.info('End of epoch {:.0f}/{:.0f}\t Time Taken: {:.2f} sec'.format(total_epoch, opt['train']['n_epoch'], time.time() - epoch_start_time))
+        model.train()
     else:
-        for data in tqdm.tqdm(phase_loader):
-            model.set_input(data)
-            model.test()
-            Logger.save_current_results(total_epoch, total_iters, model.save_current_results(), phase=opt['phase'])
-            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase=opt['phase'])
-            Logger.print_current_logs(total_epoch, total_iters, model.get_current_log(), phase=opt['phase'])
-    
+        model.test()
+        
+        
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, default='config/base.json', help='JSON file for configuration')

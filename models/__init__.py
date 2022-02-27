@@ -1,26 +1,16 @@
 import logging
 import importlib
-from torch.nn.parallel import DistributedDataParallel as DDP
-
-import core.util as Util
 logger = logging.getLogger('base')
 
 ''' create_model '''
-def create_model(opt):
+def create_model(**cfg_model):
+    opt = cfg_model['opt']
     model_opt = opt['model']['which_model']
     model_file_name, model_class_name = "models.{}".format(model_opt["name"][0]), model_opt["name"][1]
     try:
-        ''' set base model input '''
-        model_args={
-            "networks": define_networks(opt),
-            "phase": opt['phase'],
-            "save_dir": opt['path']['checkpoint'],
-            "resume_dir": opt['path']['resume_state'],
-            "rank": opt['global_rank'],
-            "finetune_norm": opt['finetune_norm']
-        }
         ''' loading Model() class from given file's name '''
-        model_args.update(model_opt['args'])
+        model_args = model_opt['args']
+        model_args.update(cfg_model)
         model = getattr(importlib.import_module(model_file_name), model_class_name)(**model_args)
         if opt['global_rank']==0:
             logger.info('Model [{:s} from {:s}] is created.'.format(model_class_name, model_file_name))
@@ -48,11 +38,6 @@ def define_network(opt, network_opt):
     else:
         ''' loading from checkpoint, which define in model initialization part '''
         pass
-    
-    net = Util.set_device(net)
-    if opt['distributed']:
-        net = DDP(net, device_ids=[opt['global_rank']], output_device=opt['global_rank'], 
-                      broadcast_buffers=True, find_unused_parameters=True)
     return net
 
 ''' define_networks, which returns a network list '''

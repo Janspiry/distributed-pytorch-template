@@ -1,81 +1,87 @@
 import os
-import torch
-import torch.nn as nn
-import logging
+from abc import abstractmethod
+from functools import partial
 import collections
 from collections import OrderedDict
+
+import torch
+import torch.nn as nn
+
 import core.util as Util
-logger = logging.getLogger('base')
+from core.logger import LogTracker
 class BaseModel():
-    def __init__(self, networks, phase, rank, save_dir, resume_dir=None, finetune_norm=False):
-        self.phase = phase
-        self.rank = rank
-        self.finetune_norm = finetune_norm
+    def __init__(self, opt, networks, phase_loader, val_loader, metrics, logger, writer):
+        self.opt = opt
+        self.phase = opt['phase']
+        self.finetune = opt['finetune_norm']
+        self.set_device = partial(Util.set_device, distributed=opt['distributed'], rank=opt['global_rank'])
 
         ''' process record '''
-        self.save_dir = save_dir
-        self.resume_dir = resume_dir
+        self.batch_size = self.opt['datasets']['train']['dataloader']['args']['batch_size']
         self.epoch = 0
-        self.iter = 0
+        self.iter = 0 
 
         ''' networks and optimizers '''
         self.networks = networks
+        self.phase_loader = phase_loader
+        self.val_loader = val_loader
         self.schedulers = []
         self.optimizers = []
+        self.metric_ftns = metrics
 
         ''' log and visual result dict '''
-        self.log_dict = OrderedDict()
-        self.visuals_dict = OrderedDict()
+        self.logger = logger
+        self.writer = writer
+
+        self.train_metrics = LogTracker('loss', writer=self.writer, phase='train')
+        self.val_metrics = LogTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer, phase='val')
 
         CustomResult = collections.namedtuple('CustomResult', 'name result')
         self.results_dict = CustomResult([],[]) # {"name":[], "result":[]}
 
+    def train(self):
+        while self.epoch <= self.opt['train']['n_epoch']:
+            self.epoch += 1
+            if self.opt['distributed']:
+                self.phase_loader.sampler.set_epoch(self.epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
 
-    def set_input(self, input):
-        self.input = Util.set_device(input)
+            train_log = self._train_epoch()
 
-    def forward(self):
-        pass
-    
-    '''used in val time, no backprop'''
-    def val(self):
-        pass
+            # save logged informations into log dict
+            train_log.update({'epoch': self.epoch, 'iters': self.iter})
 
-    '''used in test time, no backprop'''
+            # print logged informations to the screen
+            for key, value in train_log.items():
+                self.logger.info('{:5s}: {}\t'.format(str(key), value))
+            
+            if self.epoch % self.opt['train']['save_checkpoint_epoch'] == 0:
+                self.logger.info('Saving the self at the end of epoch {:.0f}'.format(self.epoch))
+                self.save()
+
+            if self.epoch % self.opt['train']['val_epoch'] == 0:
+                self.logger.info("\n\n\n------------------------------Validation Start------------------------------")
+                if self.val_loader is None:
+                    self.logger.info('Validation stop where dataloader is None, Skip it.')
+                else:
+                    val_log = self._val_epoch()
+                    for key, value in val_log.items():
+                        self.logger.info('{:5s}: {}\t'.format(str(key), value))
+                self.logger.info("\n------------------------------Validation End------------------------------\n\n")
+        self.logger.info('Number of Epochs has reached the limit, End.')
+
     def test(self):
         pass
 
-    def get_image_paths(self):
+    @abstractmethod
+    def _train_epoch(self):
+        raise NotImplementedError
+
+    def _val_epoch(self):
         pass
 
-    def optimize_parameters(self):
+    def _test(self):
         pass
 
-    def update_hyperparams(self):
-        pass
-    
-    def get_current_iters(self):
-        return self.epoch, self.iter
-
-    ''' return tensor dict to show on tensorboard, key can be arbitrary '''
-    def get_current_visuals(self):
-        return self.visuals_dict
-
-    ''' return information dict to save on logging file '''
-    def get_current_log(self):
-        return self.log_dict
-
-    ''' return tensor dict to save on given result path, key must contains name and result '''
-    def save_current_results(self):
-        return self.results_dict
-
-    def update_learning_rate(self):
-        for scheduler in self.schedulers:
-            scheduler.step()
-
-    def get_current_learning_rate(self):
-        return self.schedulers[0].get_lr()[0]
-    
     ''' save pretrained model and training state, which only do on GPU 0 '''
     def save(self):
         pass 
@@ -84,23 +90,30 @@ class BaseModel():
     def load(self):
         pass
     
-
+    ''' get the string and total parameters of the network'''
+    def get_network_description(self, network):
+        if isinstance(network, nn.DataParallel):
+            network = network.module
+        s = str(network)
+        n = sum(map(lambda x: x.numel(), network.parameters()))
+        return s, n
+    
     def print_network(self, network):
-        if self.rank!=0:
+        if self.opt['global_rank'] !=0:
             return
         s, n = self.get_network_description(network)
         if isinstance(network, nn.DataParallel):
             net_struc_str = '{} - {}'.format(network.__class__.__name__, network.module.__class__.__name__)
         else:
             net_struc_str = '{}'.format(network.__class__.__name__)
-        logger.info('Network structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
-        logger.info(s)
+        self.logger.info('Network structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
+        self.logger.info(s)
 
-    def save_network(self, network, network_label, iter_step):
-        if self.rank!=0:
+    def save_network(self, network, network_label):
+        if self.opt['global_rank'] !=0:
             return
-        save_filename = '{}_{}.pth'.format(iter_step, network_label)
-        save_path = os.path.join(self.save_dir, save_filename)
+        save_filename = '{}_{}.pth'.format(self.epoch, network_label)
+        save_path = os.path.join(self.opt['path']['checkpoint'], save_filename)
         if isinstance(network, nn.DataParallel):
             network = network.module
         state_dict = network.state_dict()
@@ -109,32 +122,34 @@ class BaseModel():
         torch.save(state_dict, save_path)
 
     def load_network(self, network, network_label, strict=True):
-        if self.resume_dir is None:
+        if self. opt['path']['resume_state'] is None:
             return 
-        model_path = "{}_{}.pth".format(self.resume_dir, network_label)
-        logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
+        model_path = "{}_{}.pth".format(self. opt['path']['resume_state'], network_label)
+        self.logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
         if isinstance(network, nn.DataParallel):
             network = network.module
         network.load_state_dict(torch.load(model_path, map_location = lambda storage, loc: Util.set_device(storage)), strict=strict)
 
     ''' saves training state during training '''
-    def save_training_state(self, epoch, iter_step):
-        state = {'epoch': epoch, 'iter': iter_step, 'schedulers': [], 'optimizers': []}
+    def save_training_state(self):
+        if self.opt['global_rank'] !=0:
+            return
+        state = {'epoch': self.epoch, 'iter': self.iter, 'schedulers': [], 'optimizers': []}
         for s in self.schedulers:
             state['schedulers'].append(s.state_dict())
         for o in self.optimizers:
             state['optimizers'].append(o.state_dict())
-        save_filename = '{}.state'.format(iter_step)
-        save_path = os.path.join(self.save_dir, save_filename)
+        save_filename = '{}.state'.format(self.epoch)
+        save_path = os.path.join(self.opt['path']['checkpoint'], save_filename)
         torch.save(state, save_path)
 
     ''' resume the optimizers and schedulers for training '''
     def resume_training(self):
-        if self.phase!='train' or self.resume_dir is None:
+        if self.phase!='train' or self. opt['path']['resume_state'] is None:
             return
-        state_path = "{}.state".format(self.resume_dir)
-        logger.info('Loading training state for [{:s}] ...'.format(state_path))
-        resume_state = torch.load(state_path, map_location = lambda storage, loc: Util.set_device(storage))
+        state_path = "{}.state".format(self. opt['path']['resume_state'])
+        self.logger.info('Loading training state for [{:s}] ...'.format(state_path))
+        resume_state = torch.load(state_path, map_location = lambda storage, loc: self.set_device(storage))
         
         resume_optimizers = resume_state['optimizers']
         resume_schedulers = resume_state['schedulers']
@@ -148,12 +163,4 @@ class BaseModel():
         self.epoch = resume_state['epoch']
         self.iter = resume_state['iter']
 
-    ''' get the string and total parameters of the network'''
-    def get_network_description(self, network):
-        if isinstance(network, nn.DataParallel):
-            network = network.module
-        s = str(network)
-        n = sum(map(lambda x: x.numel(), network.parameters()))
-        return s, n
-
-    
+   
