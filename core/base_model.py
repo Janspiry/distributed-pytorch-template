@@ -2,19 +2,19 @@ import os
 from abc import abstractmethod
 from functools import partial
 import collections
-from collections import OrderedDict
 
 import torch
 import torch.nn as nn
 
 import core.util as Util
 from core.logger import LogTracker
+CustomResult = collections.namedtuple('CustomResult', 'name result')
 class BaseModel():
-    def __init__(self, opt, networks, phase_loader, val_loader, metrics, logger, writer):
+    def __init__(self, opt, networks, phase_loader, val_loader, losses, metrics, logger, writer):
         self.opt = opt
         self.phase = opt['phase']
         self.finetune = opt['finetune_norm']
-        self.set_device = partial(Util.set_device, distributed=opt['distributed'], rank=opt['global_rank'])
+        self.set_device = partial(Util.set_device, rank=opt['global_rank'])
 
         ''' process record '''
         self.batch_size = self.opt['datasets']['train']['dataloader']['args']['batch_size']
@@ -25,18 +25,18 @@ class BaseModel():
         self.networks = networks
         self.phase_loader = phase_loader
         self.val_loader = val_loader
+        self.losses = losses
+        self.metrics = metrics
         self.schedulers = []
         self.optimizers = []
-        self.metric_ftns = metrics
 
         ''' log and visual result dict '''
         self.logger = logger
         self.writer = writer
 
-        self.train_metrics = LogTracker('loss', writer=self.writer, phase='train')
-        self.val_metrics = LogTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer, phase='val')
+        self.train_metrics = LogTracker(*[m.__name__ for m in self.losses], writer=self.writer, phase='train')
+        self.val_metrics = LogTracker(*[m.__name__ for m in self.losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='val')
 
-        CustomResult = collections.namedtuple('CustomResult', 'name result')
         self.results_dict = CustomResult([],[]) # {"name":[], "result":[]}
 
     def train(self):
@@ -45,7 +45,7 @@ class BaseModel():
             if self.opt['distributed']:
                 self.phase_loader.sampler.set_epoch(self.epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
 
-            train_log = self._train_epoch()
+            train_log = self.train_step()
 
             # save logged informations into log dict
             train_log.update({'epoch': self.epoch, 'iters': self.iter})
@@ -56,14 +56,14 @@ class BaseModel():
             
             if self.epoch % self.opt['train']['save_checkpoint_epoch'] == 0:
                 self.logger.info('Saving the self at the end of epoch {:.0f}'.format(self.epoch))
-                self.save()
+                self.save_everything()
 
             if self.epoch % self.opt['train']['val_epoch'] == 0:
                 self.logger.info("\n\n\n------------------------------Validation Start------------------------------")
                 if self.val_loader is None:
                     self.logger.info('Validation stop where dataloader is None, Skip it.')
                 else:
-                    val_log = self._val_epoch()
+                    val_log = self.val_step()
                     for key, value in val_log.items():
                         self.logger.info('{:5s}: {}\t'.format(str(key), value))
                 self.logger.info("\n------------------------------Validation End------------------------------\n\n")
@@ -73,21 +73,21 @@ class BaseModel():
         pass
 
     @abstractmethod
-    def _train_epoch(self):
+    def train_step(self):
         raise NotImplementedError
 
-    def _val_epoch(self):
+    def val_step(self):
         pass
 
-    def _test(self):
+    def test_step(self):
         pass
 
     ''' save pretrained model and training state, which only do on GPU 0 '''
-    def save(self):
+    def save_everything(self):
         pass 
 
     ''' load pretrained model and training state '''
-    def load(self):
+    def load_everything(self):
         pass
     
     ''' get the string and total parameters of the network'''

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from .base_network import BaseNetwork
+from core.base_network import BaseNetwork
 class Network(BaseNetwork):
     def __init__(self, in_channels=3, **kwargs):
         super(Network, self).__init__(**kwargs)
@@ -21,10 +21,6 @@ class Network(BaseNetwork):
             nn.Conv2d(cnums*1, in_channels, kernel_size=3, stride=1, padding=1),
             nn.Tanh()
         )
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight)
 
     def forward(self, _x):
         _x = self.down_net(_x)

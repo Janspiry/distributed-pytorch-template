@@ -13,13 +13,15 @@ class InfoLogger():
         self.rank = opt['global_rank']
         self.phase = opt['phase']
 
-        self.setup_logger(None, opt['path']['experiments_root'], 'base', level=logging.INFO, screen=False)
-        self.logger = logging.getLogger('base')
+        self.setup_logger(None, opt['path']['experiments_root'], opt['phase'], level=logging.INFO, screen=False)
+        self.logger = logging.getLogger(opt['phase'])
         self.infologger_ftns = {'info', 'warning', 'debug'}
 
     def __getattr__(self, name):
-        if self.rank !=0: # info only print on GPU 0.
-            return
+        if self.rank != 0: # info only print on GPU 0.
+            def wrapper(info, *args, **kwargs):
+                pass
+            return wrapper
         if name in self.infologger_ftns:
             print_info = getattr(self.logger, name, None)
             def wrapper(info, *args, **kwargs):
@@ -71,6 +73,7 @@ class VisualWriter():
                     "version >= 1.1 to use 'torch.utils.tensorboard' or turn off the option in the 'config.json' file."
                 logger.warning(message)
 
+        self.epoch = 0
         self.iter = 0
         self.phase = ''
 
@@ -82,14 +85,15 @@ class VisualWriter():
         self.custom_ftns = {'save_images'}
         self.timer = datetime.now()
 
-    def set_iter(self, iter, phase='train'):
+    def set_iter(self, epoch, iter, phase='train'):
         self.phase = phase
+        self.epoch = epoch
         self.iter = iter
 
     def save_images(self, results):
         result_path = os.path.join(self.result_dir, self.phase)
         os.makedirs(result_path, exist_ok=True)
-        result_path = os.path.join(result_path, str(self.iter))
+        result_path = os.path.join(result_path, str(self.epoch))
         os.makedirs(result_path, exist_ok=True)
 
         ''' get names and corresponding images from results[OrderedDict] '''
@@ -119,8 +123,6 @@ class VisualWriter():
                         tag = '{}/{}'.format(self.phase, tag)
                     add_data(tag, data, self.iter, *args, **kwargs)
             return wrapper
-        elif name in self.custom_ftns:
-            return object.__getattr__(name)
         else:
             # default action for returning methods defined in this class, set_step() for instance.
             try:

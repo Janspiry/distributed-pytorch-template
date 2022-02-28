@@ -1,9 +1,24 @@
+from turtle import forward
+import torch.nn as nn
+import torch
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 from torch.autograd import Variable
 
+# class mse_loss(nn.Module):
+#     def __init__(self) -> None:
+#         super().__init__()
+#         self.loss_fn = nn.MSELoss()
+#     def forward(self, output, target):
+#         return self.loss_fn(output, target)
+
+
+def mse_loss(output, target):
+    return F.mse_loss(output, target)
+
+    
 class FocalLoss(nn.Module):
     def __init__(self, gamma=2, alpha=None, size_average=True):
         super(FocalLoss, self).__init__()

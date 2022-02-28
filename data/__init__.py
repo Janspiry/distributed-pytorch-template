@@ -1,5 +1,3 @@
-import importlib
-import logging
 from functools import partial
 import numpy as np
 
@@ -8,15 +6,16 @@ from torch import Generator, randperm
 from torch.utils.data import DataLoader, Subset
 
 import core.util as Util
-logger = logging.getLogger('base')
+from core.praser import init_obj
+
 
 ''' create dataloader '''
-def create_dataloader(opt):
+def define_dataloader(logger, opt):
     '''create dataset and set random seed'''
     dataloader_args = opt['datasets'][opt['phase']]['dataloader']['args']
     worker_init_fn = partial(Util.set_seed, gl_seed=opt['seed'])
 
-    phase_dataset, val_dataset = create_dataset(opt)
+    phase_dataset, val_dataset = define_dataset(logger, opt)
 
     '''create datasampler'''
     data_sampler = None
@@ -26,7 +25,7 @@ def create_dataloader(opt):
     
     ''' create dataloader and validation dataloader '''
     dataloader = DataLoader(phase_dataset, sampler=data_sampler, worker_init_fn=worker_init_fn, **dataloader_args)
-    if val_dataset is not None:
+    if opt['global_rank']==0 and val_dataset is not None:
         val_dataloader = DataLoader(val_dataset, worker_init_fn=worker_init_fn, **dataloader_args) # val_dataloader don't use DistributedSampler to run only GPU 0!
     else:
         val_dataloader = None
@@ -34,11 +33,10 @@ def create_dataloader(opt):
 
 
 ''' create dataset '''
-def create_dataset(opt):
+def define_dataset(logger, opt):
     ''' loading Dataset() class from given file's name '''
     dataset_opt = opt['datasets'][opt['phase']]['which_dataset']
-    dataset_file_name, dataset_class_name = 'data.'+dataset_opt['name'][0], dataset_opt['name'][1]
-    phase_dataset = getattr(importlib.import_module(dataset_file_name), dataset_class_name)(**dataset_opt['args'])
+    phase_dataset = init_obj(dataset_opt, logger, default_file_name='data.dataset', init_type='Dataset')
     val_dataset = None
 
     valid_len = 0
@@ -58,10 +56,9 @@ def create_dataset(opt):
         data_len -= valid_len
         phase_dataset, val_dataset = subset_split(dataset=phase_dataset, lengths=[data_len, valid_len], generator=Generator().manual_seed(opt['seed']))
     
-    if opt['global_rank']==0:
-        logger.info('Dataset [{:s} from {:s}] is created. Size is {} and Phase is {}.'.format(dataset_class_name, dataset_file_name, data_len, opt['phase']))
-        if opt['phase']=='train':
-            logger.info('Dataset [{:s} from {:s}] is created. Size is {} and Phase is {}.'.format(dataset_class_name, dataset_file_name, valid_len, 'val'))   
+    logger.info('Dataset for {} have {} samples.'.format(opt['phase'], data_len))
+    if opt['phase'] == 'train':
+        logger.info('Dataset for {} have {} samples.'.format('val', valid_len))   
     return phase_dataset, val_dataset
 
 ''' split a dataset into non-overlapping new datasets of given lengths. main code is from random_split function in pytorch '''

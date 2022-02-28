@@ -15,8 +15,8 @@
 
     "datasets": { // train or test
         "train": { 
-            "which_dataset": {  // use which dataset, indicates dataset's file name and class in [data] directory
-                "name": ["image_dataset", "Dataset"], // import image_dataset.py and Dataset() class
+            "which_dataset": {  // use which dataset, name indicates dataset's file name and class in [data] directory
+                "name": ["data.dataset", "Dataset"], // import image_dataset.py and Dataset() class
                 "validation_split": 0.1, // percent or number
                 "args":{ // args to init dataset
                     "data_root": "/home/huangyecheng/dataset/cmfd/comofod" // /home/huangyecheng/dataset/cmfd/comofod
@@ -34,7 +34,7 @@
         },
         "test": { 
             "which_dataset": {
-                "name": ["image_dataset", "Dataset"], // import image_dataset.py and Dataset() class
+                "name": ["data.dataset", "Dataset"], // import image_dataset.py and Dataset() class
                 "args":{
                     "data_root": "/data/jlw/datasets/comofod",
                     "phase": "test"
@@ -51,26 +51,34 @@
     },
 
     "model": {
-        "which_model": { // use which model(trainer), indicates trainer's file and class in [models] directory
-            "name": ["ae_model", "Model"], // import ae_model.py and Model() class
-            "args": {} 
+        "which_model": { // use which model(trainer), name indicates trainer's file and class in [models] directory
+            "name": ["models.model", "Model"], // import ae_model.py and Model() class
+            "args": {
+                "lr": 1e-4,
+                "weight_decay": 0
+            } 
         }, 
-        "which_networks": [ // list of network structure, indicates network's file name and class in [models/network] directory
+        "which_networks": [ // list of network structure, name indicates network's file name and class in [models/network] directory
             {
-                "name": ["ae", "Network"], // ae_model.py and Network() class
+                "name": "Network", // ae_model.py and Network() class
                 "args": {
                     "init_type": "kaiming" //network weights initialization method, can be [orthogonal|kaiming|normal], default is kaiming
                 }
             }
         ],
-        "which_metrics": ["mse"] // list of metrics, indicates metric's class in [models/metrics.py] file
+        "which_metrics": [ // list of metrics, indicates metric's function in [models/metrics.py] file
+            "mae"
+        ], 
+        "which_losses": [ // list of losses, indicates loss's class or function in [models/loss.py] file
+            "mse_loss"
+        ] 
     },
 
     "train": {
         "n_epoch": 1e5, // max epochs, not limited now
         "val_epoch": 5, // valdation every specified number of interations
         "save_checkpoint_epoch": 3,
-        "log_iter": 1e3,
+        "log_iter": 1e4,
         "tensorboard" : true
     },
     

@@ -4,6 +4,40 @@ from collections import OrderedDict
 import json
 from pathlib import Path
 from datetime import datetime
+from functools import partial
+import importlib
+from types  import FunctionType
+''' 
+Finds a function handle with the name given as 'name' in config,
+and returns the instance initialized with corresponding arguments given.
+'''
+def init_obj(opt, logger, default_file_name, given_module=None, init_type='Network'):
+    ''' name can be list, indicates the file and class name of function '''
+    if isinstance(opt, str):
+        opt = {'name': opt}
+    name = opt['name']
+    if isinstance(name, list):
+        file_name, class_name = name[0], name[1]
+    else:
+        file_name, class_name = default_file_name, name
+    try:
+        if given_module is not None:
+            module = given_module
+        else:
+            module = importlib.import_module(file_name)
+        attr = getattr(module, class_name)
+        if isinstance(attr, type): # class
+            ret = attr(**opt.get('args', {}))
+            ret.__name__  = ret.__class__.__name__
+        elif isinstance(attr, FunctionType): # function
+            ret = partial(attr, **opt.get('args', {}))
+            ret.__name__  = attr.__name__
+            # ret = attr
+        logger.info('{} [{:s}() form {:s}] is created.'.format(init_type, class_name, file_name))
+    except:
+        raise NotImplementedError('{} [{:s}() form {:s}] not recognized.'.format(init_type, class_name, file_name))
+    return ret
+
 
 def mkdirs(paths):
     if isinstance(paths, str):

@@ -34,16 +34,14 @@ def set_gpu(args, distributed=False, rank=0):
 	if distributed and isinstance(args, torch.nn.Module):
 		return DDP(args.cuda(), device_ids=[rank], output_device=rank, broadcast_buffers=True, find_unused_parameters=True)
 	else:
-		return args
+		return args.cuda()
 		
 def set_device(args, distributed=False, rank=0):
 	if torch.cuda.is_available():
 		if isinstance(args, list):
 			return (set_gpu(item, distributed, rank) for item in args)
 		elif isinstance(args, dict):
-			for key, item in args.items():
-				if item is not None:
-					args[key] = set_gpu(item, distributed, rank)
+			return {key:set_gpu(args[key], distributed, rank) for key in args}
 		else:
 			args = set_gpu(args, distributed, rank)
 	return args

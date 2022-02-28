@@ -1,16 +1,14 @@
 import argparse
 import os
 import warnings
-import importlib
-
 import torch
 import torch.multiprocessing as mp
 
 from core.logger import VisualWriter, InfoLogger
 import core.praser as Praser
 import core.util as Util
-from data import create_dataloader
-from models import create_model, define_networks
+from data import define_dataloader
+from models import create_model, define_network, define_loss, define_metric, define_optimizer, define_scheduler
 
 ''' init_process_group '''
 def main_worker(gpu, ngpus_per_node, opt):
@@ -35,18 +33,19 @@ def main_worker(gpu, ngpus_per_node, opt):
     phase_writer = VisualWriter(opt, phase_logger)  
 
     '''set networks and dataset'''
-    phase_loader, val_loader = create_dataloader(opt) # val_loader is None if phase is test.
-    networks = define_networks(opt)
+    phase_loader, val_loader = define_dataloader(phase_logger, opt) # val_loader is None if phase is test.
+    networks = [define_network(phase_logger, opt, item_opt) for item_opt in opt['model']['which_networks']]
 
-    ''' set metrics and loss '''
-    module_metric = importlib.import_module('models.metric')
-    metrics = [getattr(module_metric, met) for met in opt['model']['which_metrics']]
+    ''' set metrics, loss, optimizer and  schedulers '''
+    metrics = [define_metric(phase_logger, item_opt) for item_opt in opt['model']['which_metrics']]
+    losses = [define_loss(phase_logger, item_opt) for item_opt in opt['model']['which_losses']]
 
     model = create_model(
         opt = opt,
         networks = networks,
         phase_loader = phase_loader,
         val_loader = val_loader,
+        losses = losses,
         metrics = metrics,
         logger = phase_logger,
         writer = phase_writer

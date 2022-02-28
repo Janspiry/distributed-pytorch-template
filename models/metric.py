@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
-def mse(input, target):
+def mae(input, target):
     with torch.no_grad():
-        loss = nn.MSELoss()
+        loss = nn.L1Loss()
         output = loss(input, target)
     return output
