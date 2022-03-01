@@ -40,20 +40,24 @@ def define_dataset(logger, opt):
     val_dataset = None
 
     valid_len = 0
+    data_len = len(phase_dataset)
     if 'debug' in opt['name']:
-        data_len = opt['debug']['data_len']
-    else:
-        data_len = len(phase_dataset)
-    dataloder_opt = opt['datasets'][opt['phase']]['dataloader']
-    split = dataloder_opt.get('validation_split', 0)    
-    
-    ''' divide validation dataset, split==0 when phase is test or validation_split is 0. '''
-    if split > 0.0 or 'debug' in opt['name']: # 
-        if isinstance(split, int):
-            assert split < data_len, "Validation set size is configured to be larger than entire dataset."
-            valid_len = split
+        debug_split = opt['debug'].get('debug_split', 1.0)
+        if isinstance(debug_split, int):
+            data_len = debug_split
         else:
-            valid_len = int(data_len * split)
+            data_len *= debug_split
+
+    dataloder_opt = opt['datasets'][opt['phase']]['dataloader']
+    valid_split = dataloder_opt.get('validation_split', 0)    
+    
+    ''' divide validation dataset, valid_split==0 when phase is test or validation_split is 0. '''
+    if valid_split > 0.0 or 'debug' in opt['name']: 
+        if isinstance(valid_split, int):
+            assert valid_split < data_len, "Validation set size is configured to be larger than entire dataset."
+            valid_len = valid_split
+        else:
+            valid_len = int(data_len * valid_split)
         data_len -= valid_len
         phase_dataset, val_dataset = subset_split(dataset=phase_dataset, lengths=[data_len, valid_len], generator=Generator().manual_seed(opt['seed']))
     

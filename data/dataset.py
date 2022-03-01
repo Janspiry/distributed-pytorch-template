@@ -20,7 +20,7 @@ def make_dataset(dir):
 
     for root, _, fnames in sorted(os.walk(dir)):
         for fname in sorted(fnames):
-            if is_image_file(fname):
+            if is_image_file(fname) and ('O' in fname or 'F' in fname):
                 path = os.path.join(root, fname)
                 images.append(path)
 

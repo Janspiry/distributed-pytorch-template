@@ -76,10 +76,10 @@
     },
 
     "train": { // args for basic training
-        "n_epoch": 1e5, // max epochs
+        "n_epoch": 500, // max epochs
         "n_iter": 1e6, // max interations, not limited now
-        "val_epoch": 5, // valdation every specified number of epochs
-        "save_checkpoint_epoch": 3,
+        "val_epoch": 30, // valdation every specified number of epochs
+        "save_checkpoint_epoch": 30,
         "log_iter": 1e4, // log every specified number of iterations
         "tensorboard" : true // tensorboardX enable
     },
@@ -88,6 +88,6 @@
         "val_epoch": 1,
         "save_checkpoint_epoch": 1,
         "log_iter": 30,
-        "data_len": 50 // change the size of dataloder to data_len.
+        "debug_split": 50 // percent or number, change the size of dataloder to debug_split.
     }
 }

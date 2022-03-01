@@ -13,10 +13,11 @@ def init_objs(opt, logger, default_file_name, given_module=None, init_type='Netw
     find a object or object list with corresponding args.
     """
     if isinstance(opt, list):
+        assert init_type not in ['Model', 'Dataset'], '{} should be defined as the dict not the list'.format(init_type)
         return [init_obj(item_opt, logger, default_file_name, given_module, init_type) for item_opt in opt]
     else:
+        assert init_type in ['Network', 'Dataset'], '{} should be defined as the list not the dict'.format(init_type)
         return init_obj(opt, logger, default_file_name, given_module, init_type)
-
 
 def init_obj(opt, logger, default_file_name, given_module=None, init_type='Network'):
     """
