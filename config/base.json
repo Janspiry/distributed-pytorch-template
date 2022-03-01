@@ -17,13 +17,13 @@
         "train": { 
             "which_dataset": {  // import designated dataset using args 
                 "name": ["data.dataset", "Dataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
-                "validation_split": 0.1, // percent or number 
                 "args":{ // args to init dataset
                     "data_root": "/home/huangyecheng/dataset/cmfd/comofod"
                     // "data_root": "/data/jlw/datasets/comofod"
                 } 
             },
             "dataloader":{
+                "validation_split": 0.1, // percent or number 
                 "args":{ // args to init dataloader
                     "batch_size": 2, // batch size in every gpu
                     "num_workers": 4,

@@ -10,8 +10,8 @@ import core.util as Util
 from data import define_dataloader
 from models import create_model, define_network, define_loss, define_metric, define_optimizer, define_scheduler
 
-''' init_process_group '''
 def main_worker(gpu, ngpus_per_node, opt):
+    """  threads running on each GPU """
     if 'local_rank' not in opt:
         opt['local_rank'] = opt['global_rank'] = gpu
     if opt['distributed']:
@@ -34,11 +34,11 @@ def main_worker(gpu, ngpus_per_node, opt):
 
     '''set networks and dataset'''
     phase_loader, val_loader = define_dataloader(phase_logger, opt) # val_loader is None if phase is test.
-    networks = [define_network(phase_logger, opt, item_opt) for item_opt in opt['model']['which_networks']]
+    networks = [define_network(phase_logger, opt, opt['model']['which_networks'])]
 
     ''' set metrics, loss, optimizer and  schedulers '''
-    metrics = [define_metric(phase_logger, item_opt) for item_opt in opt['model']['which_metrics']]
-    losses = [define_loss(phase_logger, item_opt) for item_opt in opt['model']['which_losses']]
+    metrics = [define_metric(phase_logger, opt['model']['which_metrics'])]
+    losses = [define_loss(phase_logger, opt['model']['which_losses'])]
 
     model = create_model(
         opt = opt,

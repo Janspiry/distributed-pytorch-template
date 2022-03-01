@@ -9,11 +9,12 @@ import torch.nn as nn
 import core.util as Util
 from core.logger import LogTracker
 CustomResult = collections.namedtuple('CustomResult', 'name result')
+
 class BaseModel():
     def __init__(self, opt, networks, phase_loader, val_loader, losses, metrics, logger, writer):
+        """ init model with basic input, which are from __init__(**kwargs) function in inherited class """
         self.opt = opt
         self.phase = opt['phase']
-        self.finetune = opt['finetune_norm']
         self.set_device = partial(Util.set_device, rank=opt['global_rank'])
 
         ''' process record '''
@@ -21,7 +22,7 @@ class BaseModel():
         self.epoch = 0
         self.iter = 0 
 
-        ''' networks and optimizers '''
+        ''' networks, dataloder, optimizers, losses, etc. '''
         self.networks = networks
         self.phase_loader = phase_loader
         self.val_loader = val_loader
@@ -30,10 +31,11 @@ class BaseModel():
         self.schedulers = []
         self.optimizers = []
 
-        ''' log and visual result dict '''
+        ''' logger to log file, which only work on GPU 0. writer to tensorboard and result file '''
         self.logger = logger
         self.writer = writer
 
+        ''' can rewrite in inherited class for more informations logging '''
         self.train_metrics = LogTracker(*[m.__name__ for m in self.losses], writer=self.writer, phase='train')
         self.val_metrics = LogTracker(*[m.__name__ for m in self.losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='val')
 
@@ -43,14 +45,15 @@ class BaseModel():
         while self.epoch <= self.opt['train']['n_epoch']:
             self.epoch += 1
             if self.opt['distributed']:
-                self.phase_loader.sampler.set_epoch(self.epoch) #  Sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch
+                ''' sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch '''
+                self.phase_loader.sampler.set_epoch(self.epoch) 
 
             train_log = self.train_step()
 
-            # save logged informations into log dict
+            ''' save logged informations into log dict ''' 
             train_log.update({'epoch': self.epoch, 'iters': self.iter})
 
-            # print logged informations to the screen
+            ''' print logged informations to the screen and tensorboard ''' 
             for key, value in train_log.items():
                 self.logger.info('{:5s}: {}\t'.format(str(key), value))
             
@@ -82,16 +85,16 @@ class BaseModel():
     def test_step(self):
         pass
 
-    ''' save pretrained model and training state, which only do on GPU 0 '''
     def save_everything(self):
+        """ save pretrained model and training state, which only do on GPU 0 """
         pass 
 
-    ''' load pretrained model and training state '''
     def load_everything(self):
+        """ load pretrained model and training state """
         pass
     
-    ''' get the string and total parameters of the network'''
     def get_network_description(self, network):
+        """ get the string and total parameters of the network """   
         if isinstance(network, nn.DataParallel):
             network = network.module
         s = str(network)
@@ -99,6 +102,7 @@ class BaseModel():
         return s, n
     
     def print_network(self, network):
+        """ print network structure, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
         s, n = self.get_network_description(network)
@@ -110,6 +114,7 @@ class BaseModel():
         self.logger.info(s)
 
     def save_network(self, network, network_label):
+        """ save network structure, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
         save_filename = '{}_{}.pth'.format(self.epoch, network_label)
@@ -130,8 +135,8 @@ class BaseModel():
             network = network.module
         network.load_state_dict(torch.load(model_path, map_location = lambda storage, loc: Util.set_device(storage)), strict=strict)
 
-    ''' saves training state during training '''
     def save_training_state(self):
+        """ saves training state during training, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
         state = {'epoch': self.epoch, 'iter': self.iter, 'schedulers': [], 'optimizers': []}
@@ -143,8 +148,8 @@ class BaseModel():
         save_path = os.path.join(self.opt['path']['checkpoint'], save_filename)
         torch.save(state, save_path)
 
-    ''' resume the optimizers and schedulers for training '''
     def resume_training(self):
+        """ resume the optimizers and schedulers for training, only work when phase is test or resume training enable """
         if self.phase!='train' or self. opt['path']['resume_state'] is None:
             return
         state_path = "{}.state".format(self. opt['path']['resume_state'])

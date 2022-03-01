@@ -6,11 +6,11 @@ from torch import Generator, randperm
 from torch.utils.data import DataLoader, Subset
 
 import core.util as Util
-from core.praser import init_obj
+from core.praser import init_objs
 
 
-''' create dataloader '''
 def define_dataloader(logger, opt):
+    """ create train/test dataloader and validation dataloader,  validation dataloader is None when phase is test or not GPU 0 """
     '''create dataset and set random seed'''
     dataloader_args = opt['datasets'][opt['phase']]['dataloader']['args']
     worker_init_fn = partial(Util.set_seed, gl_seed=opt['seed'])
@@ -25,18 +25,18 @@ def define_dataloader(logger, opt):
     
     ''' create dataloader and validation dataloader '''
     dataloader = DataLoader(phase_dataset, sampler=data_sampler, worker_init_fn=worker_init_fn, **dataloader_args)
+    ''' val_dataloader don't use DistributedSampler to run only GPU 0! '''
     if opt['global_rank']==0 and val_dataset is not None:
-        val_dataloader = DataLoader(val_dataset, worker_init_fn=worker_init_fn, **dataloader_args) # val_dataloader don't use DistributedSampler to run only GPU 0!
+        val_dataloader = DataLoader(val_dataset, worker_init_fn=worker_init_fn, **dataloader_args) 
     else:
         val_dataloader = None
     return dataloader, val_dataloader
 
 
-''' create dataset '''
 def define_dataset(logger, opt):
     ''' loading Dataset() class from given file's name '''
     dataset_opt = opt['datasets'][opt['phase']]['which_dataset']
-    phase_dataset = init_obj(dataset_opt, logger, default_file_name='data.dataset', init_type='Dataset')
+    phase_dataset = init_objs(dataset_opt, logger, default_file_name='data.dataset', init_type='Dataset')
     val_dataset = None
 
     valid_len = 0
@@ -44,10 +44,11 @@ def define_dataset(logger, opt):
         data_len = opt['debug']['data_len']
     else:
         data_len = len(phase_dataset)
-    split = dataset_opt.get('validation_split', 0)    
+    dataloder_opt = opt['datasets'][opt['phase']]['dataloader']
+    split = dataloder_opt.get('validation_split', 0)    
     
-    ''' divide validation dataset '''
-    if split > 0.0 or 'debug' in opt['name']: # split==0 when phase is test or validation_split is 0.
+    ''' divide validation dataset, split==0 when phase is test or validation_split is 0. '''
+    if split > 0.0 or 'debug' in opt['name']: # 
         if isinstance(split, int):
             assert split < data_len, "Validation set size is configured to be larger than entire dataset."
             valid_len = split
@@ -61,8 +62,10 @@ def define_dataset(logger, opt):
         logger.info('Dataset for {} have {} samples.'.format('val', valid_len))   
     return phase_dataset, val_dataset
 
-''' split a dataset into non-overlapping new datasets of given lengths. main code is from random_split function in pytorch '''
 def subset_split(dataset, lengths, generator):
+    """
+    split a dataset into non-overlapping new datasets of given lengths. main code is from random_split function in pytorch
+    """
     indices = randperm(sum(lengths), generator=generator).tolist()
     Subsets = []
     for offset, length in zip(np.add.accumulate(lengths), lengths):

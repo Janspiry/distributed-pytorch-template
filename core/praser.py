@@ -7,15 +7,29 @@ from datetime import datetime
 from functools import partial
 import importlib
 from types  import FunctionType
-''' 
-Finds a function handle with the name given as 'name' in config,
-and returns the instance initialized with corresponding arguments given.
-'''
+
+def init_objs(opt, logger, default_file_name, given_module=None, init_type='Network'):
+    """
+    find a object or object list with corresponding args.
+    """
+    if isinstance(opt, list):
+        return [init_obj(item_opt, logger, default_file_name, given_module, init_type) for item_opt in opt]
+    else:
+        return init_obj(opt, logger, default_file_name, given_module, init_type)
+
+
 def init_obj(opt, logger, default_file_name, given_module=None, init_type='Network'):
-    ''' name can be list, indicates the file and class name of function '''
+    """
+    finds a function handle with the name given as 'name' in config,
+    and returns the instance initialized with corresponding args.
+    """ 
+    
+    ''' default format is dict with name key '''
     if isinstance(opt, str):
         opt = {'name': opt}
+
     name = opt['name']
+    ''' name can be list, indicates the file and class name of function '''
     if isinstance(name, list):
         file_name, class_name = name[0], name[1]
     else:
@@ -26,10 +40,11 @@ def init_obj(opt, logger, default_file_name, given_module=None, init_type='Netwo
         else:
             module = importlib.import_module(file_name)
         attr = getattr(module, class_name)
-        if isinstance(attr, type): # class
+        ''' import class or function with args '''
+        if isinstance(attr, type): 
             ret = attr(**opt.get('args', {}))
             ret.__name__  = ret.__class__.__name__
-        elif isinstance(attr, FunctionType): # function
+        elif isinstance(attr, FunctionType): 
             ret = partial(attr, **opt.get('args', {}))
             ret.__name__  = attr.__name__
             # ret = attr
@@ -59,8 +74,8 @@ class NoneDict(dict):
     def __missing__(self, key):
         return None
 
-''' convert to NoneDict, which return None for missing key. '''
 def dict_to_nonedict(opt):
+    """ convert to NoneDict, which return None for missing key. """
     if isinstance(opt, dict):
         new_opt = dict()
         for key, sub_opt in opt.items():
@@ -71,8 +86,8 @@ def dict_to_nonedict(opt):
     else:
         return opt
 
-''' dict to string for logger '''
 def dict2str(opt, indent_l=1):
+    """ dict to string for logger """
     msg = ''
     for k, v in opt.items():
         if isinstance(v, dict):
@@ -104,19 +119,20 @@ def parse(args):
     else:
         opt['distributed'] = False
 
-    ''' set log directory '''
+    ''' update name '''
     if args.debug:
         opt['name'] = 'debug_{}'.format(opt['name'])
     if opt['finetune_norm']:
         opt['name'] = 'finetune_{}'.format(opt['name'])
 
+    ''' set log directory '''
     experiments_root = os.path.join(opt['path']['base_dir'], '{}_{}'.format(opt['name'], get_timestamp()))
     mkdirs(experiments_root)
 
     ''' save json '''
     write_json(opt, '{}/config.json'.format(experiments_root))
 
-    ''' change folder relative hierarchy'''
+    ''' change folder relative hierarchy '''
     opt['path']['experiments_root'] = experiments_root
     for key, path in opt['path'].items():
         if 'resume' not in key and 'base' not in key and 'root' not in key:

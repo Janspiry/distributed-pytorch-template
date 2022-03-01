@@ -4,30 +4,30 @@ from core.base_model import BaseModel
 
 class Model(BaseModel):
     def __init__(self, lr, weight_decay, **kwargs):
-        super(Model, self).__init__(**kwargs) # must to init BaseModel with kwargs
-        ''' networks are a list'''
+        ''' must to init BaseModel with kwargs '''
+        super(Model, self).__init__(**kwargs)
+
+        ''' networks can be a list, and must convers by self.set_device function if using multiple GPU. '''
         self.netG = self.set_device(self.networks[0], distributed=self.opt['distributed']) # get the defined network
         self.print_network(self.netG)
 
         if self.phase != 'test':
-            ''' define parameters, include loss, optimizers, schedulers, etc.''' 
             self.loss_fn = self.losses[0]
-            ''' find the parameters to optimize '''
+
             optim_params = list(filter(lambda p: p.requires_grad, self.netG.parameters()))
-            ''' optimizers '''
             self.optimizer = torch.optim.Adam(optim_params, lr=lr, weight_decay=weight_decay)
             self.optimizers.append(self.optimizer)
 
             ''' schedulers, not sued now '''
             for optimizer in self.optimizers:
-                pass
+                pass 
                 self.schedulers.append(torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-7, max_lr=1e-4, gamma=0.99994, cycle_momentum=False))
 
-        ''' load pretrained models and print network '''
         self.load_everything() 
 
     def set_input(self, data):
-        self.input = self.set_device(data['input']) # you must use set_device in tensor
+        ''' must use set_device in tensor '''
+        self.input = self.set_device(data['input'])
         self.path = data['path']
     
     def get_current_visuals(self):

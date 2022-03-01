@@ -8,6 +8,9 @@ import pandas as pd
 import core.util as Util
 
 class InfoLogger():
+    """
+    use logging to record log, only work on GPU 0 by judging global_rank
+    """
     def __init__(self, opt):
         self.opt = opt
         self.rank = opt['global_rank']
@@ -28,9 +31,9 @@ class InfoLogger():
                 print_info(info, *args, **kwargs)
             return wrapper
     
-    ''' set up logger '''
     @staticmethod
     def setup_logger(logger_name, root, phase, level=logging.INFO, screen=False):
+        """ set up logger """
         l = logging.getLogger(logger_name)
         formatter = logging.Formatter(
             '%(asctime)s.%(msecs)03d - %(levelname)s: %(message)s', datefmt='%y-%m-%d %H:%M:%S')
@@ -45,6 +48,10 @@ class InfoLogger():
             l.addHandler(sh)
 
 class VisualWriter():
+    """ 
+    use tensorboard to record visuals, support 'add_scalar', 'add_scalars', 'add_image', 'add_images', etc. funtion.
+    Also integrated with save results function.
+    """
     def __init__(self, opt, logger):
         log_dir = opt['path']['tb_logger']
         self.result_dir = opt['path']['results']
@@ -58,7 +65,7 @@ class VisualWriter():
 
             # Retrieve vizualization writer.
             succeeded = False
-            for module in ["torch.utils.tensorboard", "tensorboardX"]:
+            for module in ["tensorboardX", "torch.utils.tensorboard"]:
                 try:
                     self.writer = importlib.import_module(module).SummaryWriter(log_dir)
                     succeeded = True
@@ -133,6 +140,9 @@ class VisualWriter():
 
 
 class LogTracker:
+    """
+    record training numerical indicators.
+    """
     def __init__(self, *keys, writer=None, phase='train'):
         self.writer = writer
         self.phase = phase
