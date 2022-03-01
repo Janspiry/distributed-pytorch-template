@@ -54,10 +54,7 @@
     "model": { // networks/metrics/losses is a list and model is a dict
         "which_model": { // import designated  model(trainer) using args 
             "name": ["models.model", "Model"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
-            "args": { // args to init model
-                "lr": 1e-4,
-                "weight_decay": 0
-            } 
+            "args": {}
         }, 
         "which_networks": [ // import designated list of networks using args
             {
@@ -67,12 +64,19 @@
                 }
             }
         ],
-        "which_metrics": [ // import designated list of metrics without args, also can initialization with args like which_networks
-            "mae" // import mae() function/class from default file (default is [models/metrics.py]) 
-        ], 
+        "which_optimizers": [ // len(networks) == len(optimizers) == len(lr_schedulers), it will be deleted after initialization if not used.
+            { "name": "Adam", "args":{ "lr": 0.001, "weight_decay": 0}}
+        ],
+        "which_lr_schedulers": [
+            {} // {} represents None, it will be deleted after initialization.
+            // { "name": "StepLR", "args": { "step_size": 50, "gamma": 0.1 }}
+        ],
         "which_losses": [ // import designated list of losses without args, also can initialization with args like which_networks
             "mse_loss" // import mse_loss() function/class from default file (default is [models/losses.py]) 
-        ] 
+        ],
+        "which_metrics": [ // import designated list of metrics without args, also can initialization with args like which_networks
+            "mae" // import mae() function/class from default file (default is [models/metrics.py]) 
+        ]
     },
 
     "train": { // args for basic training

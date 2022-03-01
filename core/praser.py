@@ -8,26 +8,19 @@ from functools import partial
 import importlib
 from types  import FunctionType
 
-def init_objs(opt, logger, default_file_name, given_module=None, init_type='Network'):
-    """
-    find a object or object list with corresponding args.
-    """
-    if isinstance(opt, list):
-        assert init_type not in ['Model', 'Dataset'], '{} should be defined as the dict not the list'.format(init_type)
-        return [init_obj(item_opt, logger, default_file_name, given_module, init_type) for item_opt in opt]
-    else:
-        assert init_type in ['Network', 'Dataset'], '{} should be defined as the list not the dict'.format(init_type)
-        return init_obj(opt, logger, default_file_name, given_module, init_type)
-
-def init_obj(opt, logger, default_file_name, given_module=None, init_type='Network'):
+def init_obj(opt, logger, *args, default_file_name='default file', given_module=None, init_type='Network', **modify_kwargs):
     """
     finds a function handle with the name given as 'name' in config,
     and returns the instance initialized with corresponding args.
     """ 
+    if opt is None or len(opt)<1:
+        logger.info('Option is None when initialize {}'.format(init_type))
+        return None
     
     ''' default format is dict with name key '''
     if isinstance(opt, str):
         opt = {'name': opt}
+        logger.info('Config is a str, converts to a dict {}'.format(opt))
 
     name = opt['name']
     ''' name can be list, indicates the file and class name of function '''
@@ -40,13 +33,16 @@ def init_obj(opt, logger, default_file_name, given_module=None, init_type='Netwo
             module = given_module
         else:
             module = importlib.import_module(file_name)
+        
         attr = getattr(module, class_name)
+        kwargs = opt.get('args', {})
+        kwargs.update(modify_kwargs)
         ''' import class or function with args '''
         if isinstance(attr, type): 
-            ret = attr(**opt.get('args', {}))
+            ret = attr(*args, **kwargs)
             ret.__name__  = ret.__class__.__name__
         elif isinstance(attr, FunctionType): 
-            ret = partial(attr, **opt.get('args', {}))
+            ret = partial(attr, *args, **kwargs)
             ret.__name__  = attr.__name__
             # ret = attr
         logger.info('{} [{:s}() form {:s}] is created.'.format(init_type, class_name, file_name))

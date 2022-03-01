@@ -11,7 +11,7 @@ from core.logger import LogTracker
 CustomResult = collections.namedtuple('CustomResult', 'name result')
 
 class BaseModel():
-    def __init__(self, opt, networks, phase_loader, val_loader, losses, metrics, logger, writer):
+    def __init__(self, opt, phase_loader, val_loader, metrics, logger, writer):
         """ init model with basic input, which are from __init__(**kwargs) function in inherited class """
         self.opt = opt
         self.phase = opt['phase']
@@ -22,23 +22,13 @@ class BaseModel():
         self.epoch = 0
         self.iter = 0 
 
-        ''' networks, dataloder, optimizers, losses, etc. '''
-        self.networks = networks
         self.phase_loader = phase_loader
         self.val_loader = val_loader
-        self.losses = losses
         self.metrics = metrics
-        self.schedulers = []
-        self.optimizers = []
 
         ''' logger to log file, which only work on GPU 0. writer to tensorboard and result file '''
         self.logger = logger
         self.writer = writer
-
-        ''' can rewrite in inherited class for more informations logging '''
-        self.train_metrics = LogTracker(*[m.__name__ for m in self.losses], writer=self.writer, phase='train')
-        self.val_metrics = LogTracker(*[m.__name__ for m in self.losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='val')
-
         self.results_dict = CustomResult([],[]) # {"name":[], "result":[]}
 
     def train(self):
@@ -77,39 +67,24 @@ class BaseModel():
 
     @abstractmethod
     def train_step(self):
-        raise NotImplementedError
+        raise NotImplementedError('You must specify how to train your networks.')
 
+    @abstractmethod
     def val_step(self):
-        pass
+        raise NotImplementedError('You must specify how to do validation on your networks.')
 
     def test_step(self):
         pass
-
-    def save_everything(self):
-        """ save pretrained model and training state, which only do on GPU 0 """
-        pass 
-
-    def load_everything(self):
-        """ load pretrained model and training state """
-        pass
-    
-    def get_network_description(self, network):
-        """ get the string and total parameters of the network """   
-        if isinstance(network, nn.DataParallel):
-            network = network.module
-        s = str(network)
-        n = sum(map(lambda x: x.numel(), network.parameters()))
-        return s, n
     
     def print_network(self, network):
         """ print network structure, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
-        s, n = self.get_network_description(network)
         if isinstance(network, nn.DataParallel):
-            net_struc_str = '{} - {}'.format(network.__class__.__name__, network.module.__class__.__name__)
-        else:
-            net_struc_str = '{}'.format(network.__class__.__name__)
+            network = network.module
+        
+        s, n = str(network), sum(map(lambda x: x.numel(), network.parameters()))
+        net_struc_str = '{}'.format(network.__class__.__name__)
         self.logger.info('Network structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
         self.logger.info(s)
 
@@ -127,7 +102,7 @@ class BaseModel():
         torch.save(state_dict, save_path)
 
     def load_network(self, network, network_label, strict=True):
-        if self. opt['path']['resume_state'] is None:
+        if self.opt['path']['resume_state'] is None:
             return 
         model_path = "{}_{}.pth".format(self. opt['path']['resume_state'], network_label)
         self.logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
@@ -135,37 +110,44 @@ class BaseModel():
             network = network.module
         network.load_state_dict(torch.load(model_path, map_location = lambda storage, loc: Util.set_device(storage)), strict=strict)
 
-    def save_training_state(self):
+    def save_training_state(self, schedulers, optimizers):
         """ saves training state during training, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
+        assert isinstance(optimizers, list) and isinstance(schedulers, list), 'optimizers and schedulers must be a list.'
         state = {'epoch': self.epoch, 'iter': self.iter, 'schedulers': [], 'optimizers': []}
-        for s in self.schedulers:
+        for s in schedulers:
             state['schedulers'].append(s.state_dict())
-        for o in self.optimizers:
+        for o in optimizers:
             state['optimizers'].append(o.state_dict())
         save_filename = '{}.state'.format(self.epoch)
         save_path = os.path.join(self.opt['path']['checkpoint'], save_filename)
         torch.save(state, save_path)
 
-    def resume_training(self):
+    def resume_training(self, optimizers, schedulers):
         """ resume the optimizers and schedulers for training, only work when phase is test or resume training enable """
         if self.phase!='train' or self. opt['path']['resume_state'] is None:
             return
+        assert isinstance(optimizers, list) and isinstance(schedulers, list), 'optimizers and schedulers must be a list.'
         state_path = "{}.state".format(self. opt['path']['resume_state'])
         self.logger.info('Loading training state for [{:s}] ...'.format(state_path))
         resume_state = torch.load(state_path, map_location = lambda storage, loc: self.set_device(storage))
         
         resume_optimizers = resume_state['optimizers']
         resume_schedulers = resume_state['schedulers']
-        assert len(resume_optimizers) == len(self.optimizers), 'Wrong lengths of optimizers'
-        assert len(resume_schedulers) == len(self.schedulers), 'Wrong lengths of schedulers'
+        assert len(resume_optimizers) == len(optimizers), 'Wrong lengths of optimizers'
+        assert len(resume_schedulers) == len(schedulers), 'Wrong lengths of schedulers'
         for i, o in enumerate(resume_optimizers):
-            self.optimizers[i].load_state_dict(o)
+            optimizers[i].load_state_dict(o)
         for i, s in enumerate(resume_schedulers):
-            self.schedulers[i].load_state_dict(s)
+            schedulers[i].load_state_dict(s)
 
         self.epoch = resume_state['epoch']
         self.iter = resume_state['iter']
 
-   
+    def load_everything(self):
+        pass 
+    
+    @abstractmethod
+    def save_everything(self):
+        raise NotImplementedError('You must specify how to save your networks, optimizers and schedulers.')

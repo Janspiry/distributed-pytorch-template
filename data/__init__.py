@@ -6,7 +6,7 @@ from torch import Generator, randperm
 from torch.utils.data import DataLoader, Subset
 
 import core.util as Util
-from core.praser import init_objs
+from core.praser import init_obj
 
 
 def define_dataloader(logger, opt):
@@ -36,7 +36,7 @@ def define_dataloader(logger, opt):
 def define_dataset(logger, opt):
     ''' loading Dataset() class from given file's name '''
     dataset_opt = opt['datasets'][opt['phase']]['which_dataset']
-    phase_dataset = init_objs(dataset_opt, logger, default_file_name='data.dataset', init_type='Dataset')
+    phase_dataset = init_obj(dataset_opt, logger, default_file_name='data.dataset', init_type='Dataset')
     val_dataset = None
 
     valid_len = 0

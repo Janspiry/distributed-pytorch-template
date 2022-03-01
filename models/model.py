@@ -1,29 +1,24 @@
 import torch
 import tqdm
 from core.base_model import BaseModel
-
+from core.logger import LogTracker
 class Model(BaseModel):
-    def __init__(self, lr, weight_decay, **kwargs):
+    def __init__(self, networks, optimizers, lr_schedulers, losses, **kwargs):
         ''' must to init BaseModel with kwargs '''
         super(Model, self).__init__(**kwargs)
 
+        ''' networks, dataloder, optimizers, losses, etc. '''
+        self.netG = self.set_device(networks[0], distributed=self.opt['distributed']) # get the defined network
+        self.loss_fn = losses[0]
+        self.schedulers = lr_schedulers
+        self.optG = optimizers[0]
+
         ''' networks can be a list, and must convers by self.set_device function if using multiple GPU. '''
-        self.netG = self.set_device(self.networks[0], distributed=self.opt['distributed']) # get the defined network
-        self.print_network(self.netG)
+        self.load_everything()
 
-        if self.phase != 'test':
-            self.loss_fn = self.losses[0]
-
-            optim_params = list(filter(lambda p: p.requires_grad, self.netG.parameters()))
-            self.optimizer = torch.optim.Adam(optim_params, lr=lr, weight_decay=weight_decay)
-            self.optimizers.append(self.optimizer)
-
-            ''' schedulers, not sued now '''
-            for optimizer in self.optimizers:
-                pass 
-                self.schedulers.append(torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-7, max_lr=1e-4, gamma=0.99994, cycle_momentum=False))
-
-        self.load_everything() 
+        ''' can rewrite in inherited class for more informations logging '''
+        self.train_metrics = LogTracker(*[m.__name__ for m in losses], writer=self.writer, phase='train')
+        self.val_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='val')
 
     def set_input(self, data):
         ''' must use set_device in tensor '''
@@ -46,11 +41,11 @@ class Model(BaseModel):
         self.train_metrics.reset()
         for train_data in tqdm.tqdm(self.phase_loader):
             self.set_input(train_data)
-            self.optimizer.zero_grad()
+            self.optG.zero_grad()
             self.output = self.netG(self.input)
             loss = self.loss_fn(self.output, self.input)
             loss.backward()
-            self.optimizer.step()
+            self.optG.step()
 
             self.iter += self.batch_size
             self.writer.set_iter(self.epoch, self.iter, phase='train')
@@ -85,14 +80,12 @@ class Model(BaseModel):
 
         return self.val_metrics.result()
 
-    def test_step(self):
-        pass
-
     def load_everything(self):
-        self.load_network(network=self.netG, network_label="netG")
-        self.resume_training()
-    
-    def save_everything(self):
-        self.save_network(network=self.netG, network_label='netG')
-        self.save_training_state()
+        """ save pretrained model and training state, which only do on GPU 0. """
+        self.load_network(network=self.netG, network_label=self.netG.__class__.__name__)
+        self.resume_training(self.schedulers, [self.optG]) 
 
+    def save_everything(self):
+        """ load pretrained model and training state, optimizers and schedulers must be a list. """
+        self.save_network(network=self.netG, network_label=self.netG.__class__.__name__)
+        self.save_training_state(self.schedulers, [self.optG])

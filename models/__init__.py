@@ -1,5 +1,5 @@
 import torch
-from core.praser import init_objs
+from core.praser import init_obj
 
 def create_model(**cfg_model):
     """ create_model """
@@ -8,29 +8,28 @@ def create_model(**cfg_model):
 
     model_opt = opt['model']['which_model']
     model_opt['args'].update(cfg_model)
-    model = init_objs(model_opt, logger, default_file_name='models.model', init_type='Model')
+    model = init_obj(model_opt, logger, default_file_name='models.model', init_type='Model')
 
     return model
 
 def define_network(logger, opt, network_opt):
     """ define network with weights initialization """
-    net = init_objs(network_opt, logger, default_file_name='models.network', init_type='Network')
+    net = init_obj(network_opt, logger, default_file_name='models.network', init_type='Network')
 
-    if opt['phase'] == 'train' and opt['path']['resume_state'] is None:
-        for net_idx in range(len(net)):
-            logger.info('Network weights initialize using [{:s}] method.'.format(network_opt[net_idx]['args'].get('init_type', 'default')))
-            net[net_idx].init_weights()
+    if opt['phase'] == 'train':
+        logger.info('Network [{}] weights initialize using [{:s}] method.'.format(net.__class__.__name__, network_opt['args'].get('init_type', 'default')))
+        net.init_weights()
     return net
 
 
 def define_loss(logger, loss_opt):
-    return init_objs(loss_opt, logger, default_file_name='models.loss', init_type='Loss')
+    return init_obj(loss_opt, logger, default_file_name='models.loss', init_type='Loss')
 
 def define_metric(logger, metric_opt):
-    return init_objs(metric_opt, logger, default_file_name='models.metric', init_type='Metric')
+    return init_obj(metric_opt, logger, default_file_name='models.metric', init_type='Metric')
 
-def define_optimizer(logger, optimizer_opt):
-    return init_objs(optimizer_opt, logger, given_module=torch.optim, init_type='Optimizer')
+def define_optimizer(networks, logger, optimizer_opt):
+    return init_obj(optimizer_opt, logger, networks, given_module=torch.optim, init_type='Optimizer')
 
-def define_scheduler(logger, scheduler_opt):
-    return init_objs(scheduler_opt, logger, given_module=torch.optim.lr_scheduler, init_type='Scheduler')
+def define_scheduler(optimizers, logger, scheduler_opt):
+    return init_obj(scheduler_opt, logger, optimizers, given_module=torch.optim.lr_scheduler, init_type='Scheduler')
