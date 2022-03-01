@@ -17,9 +17,13 @@ def define_network(logger, opt, network_opt):
     net = init_objs(network_opt, logger, default_file_name='models.network', init_type='Network')
 
     if opt['phase'] == 'train' and opt['path']['resume_state'] is None:
-        logger.info('Network weights initialize using [{:s}] method.'.format(network_opt['args'].get('init_type', 'default')))
-        net.init_weights()
-        
+        if isinstance(net, list):
+            for net_idx in range(len(net)):
+                logger.info('Network weights initialize using [{:s}] method.'.format(network_opt[net_idx]['args'].get('init_type', 'default')))
+                net[net_idx].init_weights()
+        else:
+            logger.info('Network weights initialize using [{:s}] method.'.format(network_opt['args'].get('init_type', 'default')))
+            net.init_weights()
     return net
 
 
