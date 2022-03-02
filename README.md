@@ -17,8 +17,8 @@ This is a seed project for distributed pytorch training, was built to customize 
 ### Features
 
 - distributed training using DistributedDataParallel
-- base class for more expansibility
-- `.json` config file for most parameter tuning
+- base class for extensibility
+- `.json` configure file for most parameter tuning
 - support multiple networks/losses/metrics definition
 - debug mode for fast test 🌟
 
@@ -40,24 +40,26 @@ This is a seed project for distributed pytorch training, was built to customize 
      torch.backends.cudnn.benchmark = True
 ```
 
-2. The project allows custom classes/functions and parameters by config file. You can define dataset/network/trainer/loss/metric by the specific format. Take the `network` as the example:
+2. The project allows custom classes/functions and parameters by configure file. You can define dataset, losses, networks, etc. by the specific format. Take the `network` as the example:
 
 ```yaml
 // import Network() class from models.network.py file with args
-"which_networks": {
-    "name": ["models.network", "Network"],
-    "args": { "init_type": "kaiming"}
-},
+"which_networks": [
+	{
+    	"name": ["models.network", "Network"],
+    	"args": { "init_type": "kaiming"}
+	}
+],
 
-// import mutilple Network() class from defualt file without args
+// import mutilple Networks from defualt file with args
 "which_networks": [ 
     {"name": "Network1", args: {"init_type": "kaiming"}},
     {"name": "Network2", args: {"init_type": "kaiming"}},
 ],
 
-// import Network() class from defualt file without args
+// import mutilple Networks from defualt file without args
 "which_networks" : [
-    "Network1",
+    "Network1", // equivalent to {"name": "Network1", args: {}},
     "Network2"
 ]
 
@@ -116,18 +118,18 @@ Dataset part decide the data need to be fed into network, you can define dataset
 "name": "Dataset", // import Dataset() class from default file
 ```
 
-- You can control and record more parameters through config file. Take `data_root`  as the example, you just need to add it in `args` dict and edit corresponding class to parse this value:
+- You can control and record more parameters through configure file. Take `data_root`  as the example, you just need to add it in `args` dict and edit corresponding class to parse this value:
 
 ```yaml
 "args":{ // args to init dataset
-    "data_root": "/home/huangyecheng/dataset/cmfd/comofod"
+    "data_root": "your data path"
 } 
 ```
 
 ```python
 class Dataset(data.Dataset):
 	def __init__(self, data_root, phase='train', image_size=[256, 256], loader=pil_loader):
-		imgs = make_dataset(data_root) # data_root value is from config file
+		imgs = make_dataset(data_root) # data_root value is from configure file
 ```
 
 
@@ -158,7 +160,7 @@ Network part shows your learning network structure, you can define your network 
 "name": "Network", // import Network() class from default file
 ```
 
-- You can control and record more parameters through config file. Take `init_type`  as the example, you just need to add it in `args` dict and edit corresponding class to parse this value:
+- You can control and record more parameters through configure file. Take `init_type`  as the example, you just need to add it in `args` dict and edit corresponding class to parse this value:
 
 ```yaml
 "args": { // args to init network
@@ -169,13 +171,13 @@ Network part shows your learning network structure, you can define your network 
 ```python
 class BaseNetwork(nn.Module):
 	def __init__(self, init_type='kaiming', gain=0.02):
-		super(BaseNetwork, self).__init__() # init_type value is from config file
+		super(BaseNetwork, self).__init__() # init_type value is from configure file
 class Network(BaseNetwork):
 	def __init__(self, in_channels=3, **kwargs):
     	super(Network, self).__init__(**kwargs) # get init_type value and pass it to base network
 ```
 
-- You can import multiple networks. You should import the networks in config file and use it in model.
+- You can import multiple networks. You should import the networks in configure file and use it in model.
 
 ```yaml
 "which_networks": [ 
@@ -198,8 +200,6 @@ Model part shows your training process including optimizers/losses/process contr
 "which_model": { // import designated  model(trainer) using args 
     "name": ["models.model", "Model"],
     "args": { // args to init model
-        "lr": 1e-4,
-        "weight_decay": 0
     } 
 }, 
 ```
@@ -213,32 +213,36 @@ Model part shows your training process including optimizers/losses/process contr
 "name": "Model", // import Model() class from default file
 ```
 
-- You can control and record more parameters through config file. Take `lr`  as the example, you just need to add it in `args` dict and edit corresponding class to parse this value:
+- You can control and record more parameters through configure file. Please infer to above  `More details` part.
 
-```yaml
-"args": { // args to init model
-    "lr": 1e-4
-} 
-```
-
-```python
-class Model(BaseModel):
-    def __init__(self, lr, weight_decay, **kwargs):
-        super(Model, self).__init__(**kwargs) # lr value is from config file
-```
 
 ##### Losses and Metrics
 
-Losses and Metrics are defined on config file. You also can control and record more parameters through config file, please refer to above  `More details` part.
+Losses and Metrics are defined on configure file. You also can control and record more parameters through configure file, please refer to above  `More details` part.
 
 ```yaml
 "which_metrics": ["mae"], 
 "which_losses": ["mse_loss"] 
 ```
 
+##### Optimizers and Schedulers
+
+Optimizers and schedulers will import modules from `torch.optim` and `torch.optim.lr_scheduler`, respectively, and you need to define type and arguments to initialization. Example is as follows:
+
+```json
+"which_optimizers": [ 
+    { "name": "Adam", "args":{ "lr": 0.001, "weight_decay": 0}}
+],
+"which_lr_schedulers": [
+    { "name": "StepLR", "args": { "step_size": 50, "gamma": 0.1 }}
+],
+```
+
+If you need multiple optimizers and schedulers, optimizers, schedulers and networks must be the same length in order to correspond one-to-one. Blank dictionaries will be deleted.
 
 
-After above steps, you need to rewrite several functions like  `base_model.py/model.py` for your network and dataset.
+
+After above steps, you need to rewrite several functions like  `base_model.py/model.py` for your network and dataset. 
 
 ##### Init step
 
@@ -252,17 +256,13 @@ See `train_step()/val_step()` functions as the example.
 
 See `save_everything()/load_everything()` functions as the example.
 
-##### Save Results
-
-See `save_current_results()` functions as the example.
-
 
 
 #### Debug mode
 
 Sometime we hope debugging the process quickly to to ensure the whole project works, so debug mode is necessary. 
 
-This mode will reduce the dataset size and speed up the training process. You just need to run the file with `-d` option and edit the `debug` dict in config file.
+This mode will reduce the dataset size and speed up the training process. You just need to run the file with `-d` option and edit the `debug` dict in configure file.
 
 ```python
 python run.py -d
@@ -273,7 +273,7 @@ python run.py -d
     "val_epoch": 1,
     "save_checkpoint_epoch": 1,
     "log_iter": 30,
-    "data_len": 50 // change the size of dataloder to data_len.
+    "data_len": 50 // percent or number, change the size of dataloder to debug_split.
 }
 ```
 
@@ -281,14 +281,14 @@ python run.py -d
 
 #### Customize More 
 
-You can choose the random seed,  experiment path in config file. We will add more useful basic functions with related instructions. **Welcome to more contributions for more extensive customization and code enhancements.**
+You can choose the random seed,  experiment path in configure file. We will add more useful basic functions with related instructions. **Welcome to more contributions for more extensive customization and code enhancements.**
 
 ------
 ### Todo
 
 Here are some basic functions or examples that this repository is ready to implement:
 
-- [x] basic dataset/dataloader with validation split
+- [x] basic dataset/data_loader with validation split
 - [x] basic networks with weight initialization
 - [x] basic model (trainer)
 - [x] checkpoint/resume training
@@ -299,7 +299,9 @@ Here are some basic functions or examples that this repository is ready to imple
 - [x] finetune (partial network parameters training)
 - [x] learning rate scheduler
 - [x] random seed (reproducibility)
-- [ ] multiple optimizer and scheduler by config file
+- [x] multiple optimizer and scheduler by configure file
+- [ ] praser arguments customization
+- [ ] more network examples 
 
 
 ------
