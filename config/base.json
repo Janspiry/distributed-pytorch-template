@@ -18,8 +18,8 @@
             "which_dataset": {  // import designated dataset using arguments 
                 "name": ["data.dataset", "Dataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
                 "args":{ // arguments to initialize dataset
-                    "data_root": "/home/huangyecheng/dataset/cmfd/comofod"
-                    // "data_root": "/data/jlw/datasets/comofod"
+                    // "data_root": "/home/huangyecheng/dataset/cmfd/comofod"
+                    "data_root": "/data/jlw/datasets/comofod"
                 } 
             },
             "dataloader":{
