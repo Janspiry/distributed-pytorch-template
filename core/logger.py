@@ -4,7 +4,7 @@ import importlib
 from datetime import datetime
 import logging
 import pandas as pd
-
+import numpy as np
 import core.util as Util
 
 class InfoLogger():
@@ -83,7 +83,8 @@ class VisualWriter():
         self.epoch = 0
         self.iter = 0
         self.phase = ''
-
+        self.in_type = 'pt'
+        self.in_type = np.uint8
         self.tb_writer_ftns = {
             'add_scalar', 'add_scalars', 'add_image', 'add_images', 'add_audio',
             'add_text', 'add_histogram', 'add_pr_curve', 'add_embedding'
@@ -106,7 +107,7 @@ class VisualWriter():
         ''' get names and corresponding images from results[OrderedDict] '''
         try:
             names = results['name']
-            outputs = Util.postprocess(results['result'])
+            outputs = Util.postprocess(results['result'], in_type=self.in_type, out_type=self.out_type)
             for i in range(len(names)): 
                 Image.fromarray(outputs[i]).save(os.path.join(result_path, names[i]))
         except:

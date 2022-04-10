@@ -32,7 +32,7 @@ class BaseModel():
         self.results_dict = CustomResult([],[]) # {"name":[], "result":[]}
 
     def train(self):
-        while self.epoch <= self.opt['train']['n_epoch']:
+        while self.epoch <= self.opt['train']['n_epoch'] and self.iter <= self.opt['train']['n_iter']:
             self.epoch += 1
             if self.opt['distributed']:
                 ''' sets the epoch for this sampler. When :attr:`shuffle=True`, this ensures all replicas use a different random ordering for each epoch '''
@@ -60,7 +60,7 @@ class BaseModel():
                     for key, value in val_log.items():
                         self.logger.info('{:5s}: {}\t'.format(str(key), value))
                 self.logger.info("\n------------------------------Validation End------------------------------\n\n")
-        self.logger.info('Number of Epochs has reached the limit, End.')
+        self.logger.info('Number of Epochs/Iterations has reached the limit, End.')
 
     def test(self):
         pass
