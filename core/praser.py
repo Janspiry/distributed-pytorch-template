@@ -133,7 +133,7 @@ def parse(args):
     ''' change folder relative hierarchy '''
     opt['path']['experiments_root'] = experiments_root
     for key, path in opt['path'].items():
-        if 'resume' not in key and 'base' not in key and 'root' not in key:
+        if 'resume' not in key and 'base_dir' not in key and 'experiments_root' not in key:
             opt['path'][key] = os.path.join(experiments_root, path)
             mkdirs(opt['path'][key])
 
@@ -141,12 +141,13 @@ def parse(args):
     if 'debug' in opt['name']:
         opt['train'].update(opt['debug'])
 
-
     ''' code backup ''' 
+    # if os.path.exists(opt['path']['code']):
+        # shutil.rmtree(opt['path']['code'])
     for name in os.listdir('.'):
         if name in ['config', 'models', 'core', 'slurm', 'data']:
-            shutil.copytree(name, opt['path']['code'], ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
-        if name == 'run.py':
+            shutil.copytree(name, os.path.join(opt['path']['code'], name), ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
+        if '.py' in name or '.sh' in name:
             shutil.copy(name, opt['path']['code'])
     return dict_to_nonedict(opt)
 

@@ -19,6 +19,7 @@ class Model(BaseModel):
         ''' can rewrite in inherited class for more informations logging '''
         self.train_metrics = LogTracker(*[m.__name__ for m in losses], writer=self.writer, phase='train')
         self.val_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='val')
+        self.test_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='test')
 
     def set_input(self, data):
         ''' must use set_device in tensor '''
@@ -33,7 +34,7 @@ class Model(BaseModel):
         return dict
 
     def save_current_results(self):
-        self.results_dict = self.results_dict._replace(name=self.path, result=self.output)
+        self.results_dict = self.results_dict._replace(name=self.path, result=self.output.detach().float().cpu())
         return self.results_dict._asdict()
 
     def train_step(self):
