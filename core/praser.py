@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import partial
 import importlib
 from types  import FunctionType
+import shutil
 
 def init_obj(opt, logger, *args, default_file_name='default file', given_module=None, init_type='Network', **modify_kwargs):
     """
@@ -139,6 +140,14 @@ def parse(args):
     ''' debug mode '''
     if 'debug' in opt['name']:
         opt['train'].update(opt['debug'])
+
+
+    ''' code backup ''' 
+    for name in os.listdir('.'):
+        if name in ['config', 'models', 'core', 'slurm', 'data']:
+            shutil.copytree(name, opt['path']['code'], ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
+        if name == 'run.py':
+            shutil.copy(name, opt['path']['code'])
     return dict_to_nonedict(opt)
 
 

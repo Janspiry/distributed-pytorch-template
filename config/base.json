@@ -8,6 +8,7 @@
         "base_dir": "experiments", // base path for all log except resume_state
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
+        "cdoe": "code", // code backup
         "checkpoint": "checkpoint",
         // "resume_state": "experiments/debug_base_220226_214326/checkpoint/100" 
         "resume_state": null // ex: 100, loading .state  and .pth from given epoch and iteration
