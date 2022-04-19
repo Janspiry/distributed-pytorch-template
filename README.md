@@ -7,7 +7,7 @@ This is a seed project for distributed pytorch training, was built to customize 
 
 Here is an overview of what this template can do, and most of them can be customized by the configure file.
 
-![distributed pytorch template](E:\Documents\XmindFile\distributed pytorch template.png)
+![distributed pytorch template](https://gitee.com/Janspiry/markdown-image/raw/master/assets/distributed%20pytorch%20template.png)
 
 ### Basic Functions
 
