@@ -3,6 +3,12 @@
 This is a seed project for distributed pytorch training, was built to customize your network quickly. 
 
 ------
+### Overview
+
+Here is an overview of what this template can do, and most of them can be customized by the configure file.
+
+![distributed pytorch template](E:\Documents\XmindFile\distributed pytorch template.png)
+
 ### Basic Functions
 
 - checkpoint/resume training
