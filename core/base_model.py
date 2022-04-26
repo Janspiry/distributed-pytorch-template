@@ -110,7 +110,7 @@ class  BaseModel():
             network = network.module
         network.load_state_dict(torch.load(model_path, map_location = lambda storage, loc: Util.set_device(storage)), strict=strict)
 
-    def save_training_state(self, schedulers, optimizers):
+    def save_training_state(self, optimizers, schedulers):
         """ saves training state during training, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
@@ -135,8 +135,8 @@ class  BaseModel():
         
         resume_optimizers = resume_state['optimizers']
         resume_schedulers = resume_state['schedulers']
-        assert len(resume_optimizers) == len(optimizers), 'Wrong lengths of optimizers'
-        assert len(resume_schedulers) == len(schedulers), 'Wrong lengths of schedulers'
+        assert len(resume_optimizers) == len(optimizers), 'Wrong lengths of optimizers {} != {}'.format(len(resume_optimizers), len(optimizers))
+        assert len(resume_schedulers) == len(schedulers), 'Wrong lengths of schedulers {} != {}'.format(len(resume_schedulers), len(schedulers))
         for i, o in enumerate(resume_optimizers):
             optimizers[i].load_state_dict(o)
         for i, s in enumerate(resume_schedulers):

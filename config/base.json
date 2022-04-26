@@ -62,7 +62,13 @@
     "model": { // networks/metrics/losses/optimizers/lr_schedulers is a list and model is a dict
         "which_model": { // import designated  model(trainer) using arguments 
             "name": ["models.model", "Model"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
-            "args": {}
+            "args": {
+                // "ema_scheduler": { // not used now
+                //     "ema_start": 1e3,
+                //     "ema_iter": 1e3,
+                //     "ema_decay": 0.9999
+                // }
+            }
         }, 
         "which_networks": [ // import designated list of networks using arguments
             {
