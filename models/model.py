@@ -42,9 +42,9 @@ class Model(BaseModel):
         self.load_everything()
 
         ''' can rewrite in inherited class for more informations logging '''
-        self.train_metrics = LogTracker(*[m.__name__ for m in losses], writer=self.writer, phase='train')
-        self.val_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='val')
-        self.test_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], writer=self.writer, phase='test')
+        self.train_metrics = LogTracker(*[m.__name__ for m in losses], phase='train')
+        self.val_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], phase='val')
+        self.test_metrics = LogTracker(*[m.__name__ for m in losses], *[m.__name__ for m in self.metrics], phase='test')
 
     def set_input(self, data):
         ''' must use set_device in tensor '''
@@ -76,6 +76,7 @@ class Model(BaseModel):
             self.iter += self.batch_size
             self.writer.set_iter(self.epoch, self.iter, phase='train')
             self.train_metrics.update(self.loss_fn.__name__, loss.item())
+            self.writer.add_scalar(self.loss_fn.__name__, loss.item())
             if self.iter % self.opt['train']['log_iter'] == 0:
                 for key, value in self.train_metrics.result().items():
                     self.logger.info('{:5s}: {}\t'.format(str(key), value))
@@ -102,8 +103,11 @@ class Model(BaseModel):
                 self.iter += self.batch_size
                 self.writer.set_iter(self.epoch, self.iter, phase='val')
                 self.val_metrics.update(self.loss_fn.__name__, loss.item())
+                self.writer.add_scalar(self.loss_fn.__name__, loss.item())
                 for met in self.metrics:
-                    self.val_metrics.update(met.__name__, met(self.input, self.output))
+                    key, value = met.__name__, met(self.input, self.output)
+                    self.writer.add_scalar(key, value)
+                    self.val_metrics.update(key, value)
                 for key, value in self.get_current_visuals().items():
                     self.writer.add_image(key, value)
                 self.writer.save_images(self.save_current_results())
