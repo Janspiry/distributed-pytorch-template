@@ -1,8 +1,7 @@
-# Pytorch Template Using DistributedDataParallel
+# PyTorch Template Using DistributedDataParallel
 
-This is a seed project for distributed pytorch training, was built to customize your network quickly. 
+This is a seed project for distributed PyTorch training, which was built to customize your network quickly. 
 
-------
 ### Overview
 
 Here is an overview of what this template can do, and most of them can be customized by the configure file.
@@ -33,7 +32,7 @@ Here is an overview of what this template can do, and most of them can be custom
 
 #### You Need to Know 
 
-1. cuDNN default settings are as follows for training, which may reduce your code reproducibility! Notice it to avoid the unexpected behaviors.
+1. cuDNN default settings are as follows for training, which may reduce your code reproducibility! Notice it to avoid unexpected behaviors.
 
 ```python
  torch.backends.cudnn.enabled = True
@@ -46,7 +45,7 @@ Here is an overview of what this template can do, and most of them can be custom
      torch.backends.cudnn.benchmark = True
 ```
 
-2. The project allows custom classes/functions and parameters by configure file. You can define dataset, losses, networks, etc. by the specific format. Take the `network` as the example:
+2. The project allows custom classes/functions and parameters by configure file. You can define dataset, losses, networks, etc. by the specific format. Take the `network` as an example:
 
 ```yaml
 // import Network() class from models.network.py file with args
@@ -87,7 +86,7 @@ More choices can be found on `run.py` and `config/base.json`.
 
 #### Customize Dataset
 
-Dataset part decide the data need to be fed into network, you can define dataset by following steps:
+Dataset part decides the data need to be fed into the network, you can define the dataset by following steps:
 
 1. Put your dataset under `data` folder. See `dataset.py` in this folder as an example.
 2. Edit the **\[dataset\]\[train|test\]** part in `config/base.json` to import and initialize dataset. 
@@ -117,14 +116,14 @@ Dataset part decide the data need to be fed into network, you can define dataset
 
 ##### More details
 
-- You can import dataset from a new file. Key `name` can be a list to show your file name and class/function name, or a single string to explain class name in default file(`data.dataset.py`). Example is as follows:
+- You can import dataset from a new file. Key `name` can be a list to show your file name and class/function name, or a single string to explain class name in default file(`data.dataset.py`). An example is as follows:
 
 ```yaml
 "name": ["data.dataset", "Dataset"], // import Dataset() class from data.dataset.py
 "name": "Dataset", // import Dataset() class from default file
 ```
 
-- You can control and record more parameters through configure file. Take `data_root`  as the example, you just need to add it in `args` dict and edit corresponding class to parse this value:
+- You can control and record more parameters through configure file. Take `data_root`  as the example, you just need to add it in `args` dict and edit the corresponding class to parse this value:
 
 ```yaml
 "args":{ // args to init dataset
@@ -159,7 +158,7 @@ Network part shows your learning network structure, you can define your network 
 ```
 ##### More details
 
-- You can import networks from a new file. Key `name` can be a list to show your file name and class/function name, or a single string to explain class name in default file(`models.network.py` ). Example is as follows:
+- You can import networks from a new file. Key `name` can be a list to show your file name and class/function name, or a single string to explain class name in default file(`models.network.py` ). An example is as follows:
 
 ```yaml
 "name": ["models.network", "Network"], // import Network() class from models.network.py
@@ -212,7 +211,7 @@ Model part shows your training process including optimizers/losses/process contr
 
 ##### More details
 
-- You can import model from a new file. Key `name` can be a list to show your file name and class/function name, or a single string to explain class name in default file(`models.model.py` ). Example is as follows:
+- You can import model from a new file. Key `name` can be a list to show your file name and class/function name, or a single string to explain class name in default file(`models.model.py` ). An example is as follows:
 
 ```yaml
 "name": ["models.model", "Model"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
@@ -224,7 +223,7 @@ Model part shows your training process including optimizers/losses/process contr
 
 ##### Losses and Metrics
 
-Losses and Metrics are defined on configure file. You also can control and record more parameters through configure file, please refer to above  `More details` part.
+Losses and Metrics are defined on configure file. You also can control and record more parameters through configure file, please refer to the above  `More details` part.
 
 ```yaml
 "which_metrics": ["mae"], 
@@ -233,7 +232,7 @@ Losses and Metrics are defined on configure file. You also can control and recor
 
 ##### Optimizers and Schedulers
 
-Optimizers and schedulers will import modules from `torch.optim` and `torch.optim.lr_scheduler`, respectively, and you need to define type and arguments to initialization. Example is as follows:
+Optimizers and schedulers will import modules from `torch.optim` and `torch.optim.lr_scheduler`, respectively, and you need to define type and arguments to initialization. An example is as follows:
 
 ```json
 "which_optimizers": [ 
@@ -248,7 +247,7 @@ If you need multiple optimizers and schedulers, optimizers, schedulers and netwo
 
 
 
-After above steps, you need to rewrite several functions like  `base_model.py/model.py` for your network and dataset. 
+After the above steps, you need to rewrite several functions like  `base_model.py/model.py` for your network and dataset. 
 
 ##### Init step
 
@@ -266,9 +265,9 @@ See `save_everything()/load_everything()` functions as the example.
 
 #### Debug mode
 
-Sometime we hope debugging the process quickly to to ensure the whole project works, so debug mode is necessary. 
+Sometimes we hope to debug the process quickly to ensure the whole project works, so debug mode is necessary.
 
-This mode will reduce the dataset size and speed up the training process. You just need to run the file with `-d` option and edit the `debug` dict in configure file.
+This mode will reduce the dataset size and speed up the training process. You just need to run the file with -d option and edit the debug dict in configure file.
 
 ```python
 python run.py -d
