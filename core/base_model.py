@@ -80,7 +80,7 @@ class  BaseModel():
         """ print network structure, only work on GPU 0 """
         if self.opt['global_rank'] !=0:
             return
-        if isinstance(network, nn.DataParallel):
+        if isinstance(network, nn.DataParallel) or isinstance(network, nn.parallel.DistributedDataParallel):
             network = network.module
         
         s, n = str(network), sum(map(lambda x: x.numel(), network.parameters()))
@@ -94,7 +94,7 @@ class  BaseModel():
             return
         save_filename = '{}_{}.pth'.format(self.epoch, network_label)
         save_path = os.path.join(self.opt['path']['checkpoint'], save_filename)
-        if isinstance(network, nn.DataParallel):
+        if isinstance(network, nn.DataParallel) or isinstance(network, nn.parallel.DistributedDataParallel):
             network = network.module
         state_dict = network.state_dict()
         for key, param in state_dict.items():
@@ -105,10 +105,11 @@ class  BaseModel():
         if self.opt['path']['resume_state'] is None:
             return 
         model_path = "{}_{}.pth".format(self. opt['path']['resume_state'], network_label)
-        self.logger.info('Loading pretrained model for [{:s}] ...'.format(model_path))
-        if isinstance(network, nn.DataParallel):
+        self.logger.info('Loading pretrained model from [{:s}] ...'.format(model_path))
+        if isinstance(network, nn.DataParallel) or isinstance(network, nn.parallel.DistributedDataParallel):
             network = network.module
         network.load_state_dict(torch.load(model_path, map_location = lambda storage, loc: Util.set_device(storage)), strict=strict)
+
 
     def save_training_state(self, optimizers, schedulers):
         """ saves training state during training, only work on GPU 0 """
