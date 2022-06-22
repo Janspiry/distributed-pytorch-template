@@ -6,7 +6,7 @@ This is a seed project for distributed PyTorch training, which was built to cust
 
 Here is an overview of what this template can do, and most of them can be customized by the configure file.
 
-![distributed pytorch template](misc/distributed pytorch template.png)
+![distributed pytorch template](misc/template.png)
 
 ### Basic Functions
 
