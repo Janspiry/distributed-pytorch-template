@@ -17,7 +17,7 @@ class EMA():
         return old * self.beta + (1 - self.beta) * new
 
 class Model(BaseModel):
-    def __init__(self, networks, optimizers, lr_schedulers, losses, ema_scheduler=None, **kwargs):
+    def __init__(self, networks, losses, optimizers=None, ema_scheduler=None, **kwargs):
         ''' must to init BaseModel with kwargs '''
         super(Model, self).__init__(**kwargs)
 
@@ -29,17 +29,18 @@ class Model(BaseModel):
             self.EMA = EMA(beta=self.ema_scheduler['ema_decay'])
         else:
             self.ema_scheduler = None
-        ''' ddp '''
+        
+        ''' networks can be a list, and must convers by self.set_device function if using multiple GPU. '''
         self.netG = self.set_device(self.netG, distributed=self.opt['distributed'])
         if self.ema_scheduler is not None:
             self.netG_EMA = self.set_device(self.netG_EMA, distributed=self.opt['distributed'])
-        
-        self.loss_fn = losses[0]
-        self.schedulers = lr_schedulers
-        self.optG = optimizers[0]
+        self.load_networks()
 
-        ''' networks can be a list, and must convers by self.set_device function if using multiple GPU. '''
-        self.load_everything()
+        self.optG = torch.optim.Adam(list(filter(lambda p: p.requires_grad, self.netG.parameters())), **optimizers[0])
+        self.optimizers.append(self.optG)
+        self.resume_training() 
+
+        self.loss_fn = losses[0]
 
         ''' can rewrite in inherited class for more informations logging '''
         self.train_metrics = LogTracker(*[m.__name__ for m in losses], phase='train')
@@ -114,7 +115,7 @@ class Model(BaseModel):
 
         return self.val_metrics.result()
 
-    def load_everything(self):
+    def load_networks(self):
         """ save pretrained model and training state, which only do on GPU 0. """
         if self.opt['distributed']:
             netG_label = self.netG.module.__class__.__name__
@@ -123,7 +124,6 @@ class Model(BaseModel):
         self.load_network(network=self.netG, network_label=netG_label, strict=False)
         if self.ema_scheduler is not None:
             self.load_network(network=self.netG_EMA, network_label=netG_label+'_ema', strict=False)
-        self.resume_training([self.optG], self.schedulers) 
 
     def save_everything(self):
         """ load pretrained model and training state, optimizers and schedulers must be a list. """

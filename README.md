@@ -6,7 +6,7 @@ This is a seed project for distributed PyTorch training, which was built to cust
 
 Here is an overview of what this template can do, and most of them can be customized by the configure file.
 
-![distributed pytorch template](https://gitee.com/Janspiry/markdown-image/raw/master/assets/distributed%20pytorch%20template.png)
+![distributed pytorch template](misc/distributed pytorch template.png)
 
 ### Basic Functions
 
@@ -229,23 +229,6 @@ Losses and Metrics are defined on configure file. You also can control and recor
 "which_metrics": ["mae"], 
 "which_losses": ["mse_loss"] 
 ```
-
-##### Optimizers and Schedulers
-
-Optimizers and schedulers will import modules from `torch.optim` and `torch.optim.lr_scheduler`, respectively, and you need to define type and arguments to initialization. An example is as follows:
-
-```json
-"which_optimizers": [ 
-    { "name": "Adam", "args":{ "lr": 0.001, "weight_decay": 0}}
-],
-"which_lr_schedulers": [
-    { "name": "StepLR", "args": { "step_size": 50, "gamma": 0.1 }}
-],
-```
-
-If you need multiple optimizers and schedulers, optimizers, schedulers and networks must be the same length in order to correspond one-to-one. Blank dictionaries will be deleted.
-
-
 
 After the above steps, you need to rewrite several functions like  `base_model.py/model.py` for your network and dataset. 
 
